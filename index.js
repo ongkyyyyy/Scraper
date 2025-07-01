@@ -12,7 +12,7 @@ const scraperMap = {
 };
 
 app.get('/api/:source', (req, res) => {
-  const source = req.params.source; // traveloka, ticketcom, etc.
+  const source = req.params.source;
   const hotelUrl = req.query.url;
   const hotelId = req.query.hotel_id;
 

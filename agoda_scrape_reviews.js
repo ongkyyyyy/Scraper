@@ -63,7 +63,14 @@ async function scrapeReviews(retryAttempt = 0) {
             height: 720 + Math.floor(Math.random() * 100),
             deviceScaleFactor: 1
         },
-        args: ["--start-maximized", "--disable-notifications", "--disable-infobars", "--disable-popup-blocking"]
+        args: [
+            "--start-maximized", 
+            "--disable-notifications", 
+            "--disable-infobars", 
+            "--disable-popup-blocking",
+            "--no-sandbox",
+            "--disable-setuid-sandbox"
+        ]
     });
 
     try {

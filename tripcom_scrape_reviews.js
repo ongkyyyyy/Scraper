@@ -22,7 +22,9 @@ async function scrapeReviews() {
             "--start-maximized",
             "--disable-notifications", 
             "--disable-infobars", 
-            "--disable-popup-blocking"
+            "--disable-popup-blocking",
+            "--no-sandbox",
+            "--disable-setuid-sandbox"
         ] 
     });
 
