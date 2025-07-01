@@ -147,12 +147,15 @@ async function scrapeReviews(retryAttempt = 0) {
             return scrapeReviews(retryAttempt + 1);
         } else {
             console.error("❌ Max retry attempts reached. Giving up.");
+            process.exit(1);
         }
         return;
     }
 
     console.log("Closing browser...");
     await browser.close();
+    console.log("✅ Finished all tasks. Exiting...");
+    process.exit(0);
 }
 
 async function sendReviews(reviews, hotelId) {
