@@ -1,5 +1,5 @@
 const express = require('express');
-const { spawn } = require('child_process');
+const { exec } = require('child_process');
 const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -25,34 +25,18 @@ app.get('/api/:source', (req, res) => {
   }
 
   const scriptPath = path.join(__dirname, scraperMap[source]);
-  const scraper = spawn('node', [scriptPath, hotelUrl, hotelId]);
+  const command = `node "${scriptPath}" "${hotelUrl}" "${hotelId}"`;
 
-  let stdout = '';
-  let stderr = '';
-
-  scraper.stdout.on('data', (data) => {
-    stdout += data.toString();
-  });
-
-  scraper.stderr.on('data', (data) => {
-    stderr += data.toString();
-  });
-
-  scraper.on('close', (code) => {
-    if (code === 0) {
-      res.json({
-        message: `${source} scraping completed. Data has been sent to /reviews endpoint.`,
-        stdout: stdout.trim()
-      });
+  exec(command, (error, stdout, stderr) => {
+    if (error) {
+      console.error(`❌ Scraper failed: ${stderr || error.message}`);
     } else {
-      res.status(500).json({
-        error: `${source} scraping failed with code ${code}`,
-        stderr: stderr.trim()
-      });
+      console.log(`✅ Scraper completed: ${stdout}`);
     }
   });
+
+  res.json({ message: `Scraper for ${source} started.` });
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Scraper API running on http://localhost:${PORT}`);
-});
+
+app.listen(PORT, () => console.log(`🚀 Scraper API running on http://localhost:${PORT}`));
