@@ -29,10 +29,14 @@ app.get('/api/:source', (req, res) => {
 
   exec(command, (error, stdout, stderr) => {
     if (error) {
-      return res.status(500).json({ error: stderr || error.message });
+      console.error(`❌ Scraper failed: ${stderr || error.message}`);
+    } else {
+      console.log(`✅ Scraper completed: ${stdout}`);
     }
-    return res.json({ message: 'Scraping done.', output: stdout });
   });
+
+  res.json({ message: `Scraper for ${source} started.` });
 });
+
 
 app.listen(PORT, () => console.log(`🚀 Scraper API running on http://localhost:${PORT}`));
