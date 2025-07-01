@@ -106,9 +106,10 @@ async function scrapeReviews(retryAttempt = 0) {
                 if (!year || year < 2024) {
                     console.log("Encountered 2023 or earlier review or invalid date. Stopping scraping.");
                     console.log("Total Reviews Scraped:", allReviews.length);
+                    allReviews.push(...reviews);
                     await sendReviews(allReviews, hotelId);
                     await browser.close();
-                    return;
+                    process.exit(0);
                 }
                 allReviews.push(review);
             }
@@ -136,8 +137,12 @@ async function scrapeReviews(retryAttempt = 0) {
             pageCounter++;
         }
 
-        console.log("Total Reviews Scraped:", allReviews.length);
+        console.log("🎉 Scraping finished. Sending reviews...");
         await sendReviews(allReviews, hotelId);
+
+        console.log("🧹 Closing browser...");
+        await browser.close();
+        process.exit(0);
     } catch (err) {
         console.error(`❌ Error during scraping: ${err.message}`);
         await browser.close();
@@ -147,12 +152,9 @@ async function scrapeReviews(retryAttempt = 0) {
             return scrapeReviews(retryAttempt + 1);
         } else {
             console.error("❌ Max retry attempts reached. Giving up.");
+            process.exit(1);
         }
-        return;
     }
-
-    console.log("Closing browser...");
-    await browser.close();
 }
 
 async function sendReviews(reviews, hotelId) {
