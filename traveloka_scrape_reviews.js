@@ -108,8 +108,7 @@ async function scrapeReviews(retryAttempt = 0) {
                     console.log("Total Reviews Scraped:", allReviews.length);
                     await sendReviews(allReviews, hotelId);
                     await browser.close();
-                    console.log("✅ Exiting early after sending data...");
-                    process.exit(0);
+                    return;
                 }
                 allReviews.push(review);
             }
@@ -148,14 +147,12 @@ async function scrapeReviews(retryAttempt = 0) {
             return scrapeReviews(retryAttempt + 1);
         } else {
             console.error("❌ Max retry attempts reached. Giving up.");
-            process.exit(1);
         }
+        return;
     }
 
     console.log("Closing browser...");
     await browser.close();
-    console.log("✅ Finished all tasks. Exiting...");
-    process.exit(0);
 }
 
 async function sendReviews(reviews, hotelId) {
@@ -167,21 +164,14 @@ async function sendReviews(reviews, hotelId) {
                 ota: "traveloka"
             });
             console.log('✅ Data sent to backend successfully');
+            console.log('Total Reviews Sent:', reviews.length);
+            console.log('Hotel ID:', hotelId);
         } else {
             console.log('ℹ️ No valid reviews found.');
         }
     } catch (error) {
         console.error('❌ Error sending data:', error.message);
-        process.exit(1);
     }
 }
 
-(async () => {
-    try {
-        await scrapeReviews();
-    } catch (err) {
-        console.error("❌ Unhandled scraper error:", err.message);
-        process.exit(1);
-    }
-})();
-
+scrapeReviews();
