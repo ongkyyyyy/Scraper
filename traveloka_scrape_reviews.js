@@ -149,7 +149,6 @@ async function scrapeReviews(retryAttempt = 0) {
             console.error("❌ Max retry attempts reached. Giving up.");
             process.exit(1);
         }
-        return;
     }
 
     console.log("Closing browser...");
@@ -177,4 +176,14 @@ async function sendReviews(reviews, hotelId) {
     }
 }
 
-scrapeReviews();
+(async () => {
+    try {
+        await scrapeReviews();
+        console.log("✅ Scraping finished successfully.");
+        process.exit(0);
+    } catch (err) {
+        console.error("❌ Unhandled scraper error:", err.message);
+        process.exit(1); 
+    }
+})();
+
