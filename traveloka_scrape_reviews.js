@@ -28,10 +28,7 @@ async function scrapeReviews(retryAttempt = 0) {
     });
 
     try {
-        console.log("✅ Opened browser, creating new page...");
         const page = await browser.newPage();
-
-        console.log("✅ Setting user agent...");
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64)...');
 
         console.log(`✅ Going to URL: ${hotelUrl}`);
@@ -58,23 +55,19 @@ async function scrapeReviews(retryAttempt = 0) {
                     const dayMatch = relativeDate.match(/Diulas\s+(\d+)\s+hari\s+lalu/);
 
                     if (weekMatch) {
-                        const weeksAgo = parseInt(weekMatch[1]);
-                        now.setDate(now.getDate() - weeksAgo * 7);
+                        now.setDate(now.getDate() - parseInt(weekMatch[1]) * 7);
                         return now;
                     }
-
                     if (dayMatch) {
-                        const daysAgo = parseInt(dayMatch[1]);
-                        now.setDate(now.getDate() - daysAgo);
+                        now.setDate(now.getDate() - parseInt(dayMatch[1]));
                         return now;
                     }
-
                     return null;
                 }
 
                 return Array.from(document.querySelectorAll('.css-1dbjc4n.r-14lw9ot.r-h1746q.r-kdyh1x.r-d045u9.r-1udh08x.r-d23pfw')).map(review => {
                     const usernameElem = Array.from(review.querySelectorAll('div.css-901oao'))
-                    .find(el => el.innerText && !el.innerText.match(/Diulas\s+\d+\s+(minggu|hari)\s+lalu/) && el.innerText.length <= 10);
+                        .find(el => el.innerText && !el.innerText.match(/Diulas\s+\d+\s+(minggu|hari)\s+lalu/) && el.innerText.length <= 10);
                     const ratingElem = review.querySelector('[data-testid="tvat-ratingScore"]');
                     const commentElem = review.querySelector('.css-901oao.css-cens5h');
                     const timestampElem = Array.from(review.querySelectorAll("div.css-901oao"))
@@ -83,13 +76,11 @@ async function scrapeReviews(retryAttempt = 0) {
                     return {
                         username: usernameElem ? usernameElem.innerText.trim() : 'Anonymous',
                         rating: ratingElem ? parseFloat(ratingElem.innerText.trim().replace(',', '.')) : null,
-                        comment: commentElem && commentElem.innerText.trim() ? commentElem.innerText.trim() : '-',
+                        comment: commentElem?.innerText.trim() || '-',
                         timestamp: (() => {
                             if (!timestampElem) return 'Unknown Date';
-
                             const dateObj = convertToDate(timestampElem.innerText.trim());
                             if (!dateObj) return 'Unknown Date';
-
                             const dd = String(dateObj.getDate()).padStart(2, '0');
                             const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
                             const yyyy = String(dateObj.getFullYear());
@@ -107,9 +98,15 @@ async function scrapeReviews(retryAttempt = 0) {
                     console.log("Encountered 2023 or earlier review or invalid date. Stopping scraping.");
                     console.log("Total Reviews Scraped:", allReviews.length);
                     allReviews.push(...reviews);
-                    await sendReviews(allReviews, hotelId);
-                    await browser.close();
-                    process.exit(0);
+
+                    try {
+                        await sendReviews(allReviews, hotelId);
+                    } catch (err) {
+                        console.error("❌ Error sending reviews:", err.message);
+                    } finally {
+                        await browser.close();
+                        process.exit(0);
+                    }
                 }
                 allReviews.push(review);
             }
@@ -137,12 +134,17 @@ async function scrapeReviews(retryAttempt = 0) {
             pageCounter++;
         }
 
-        console.log("🎉 Scraping finished. Sending reviews...");
-        await sendReviews(allReviews, hotelId);
+        try {
+            console.log("🎉 Scraping finished. Sending reviews...");
+            await sendReviews(allReviews, hotelId);
+        } catch (err) {
+            console.error("❌ Error sending reviews:", err.message);
+        } finally {
+            console.log("🧹 Closing browser...");
+            await browser.close();
+            process.exit(0);
+        }
 
-        console.log("🧹 Closing browser...");
-        await browser.close();
-        process.exit(0);
     } catch (err) {
         console.error(`❌ Error during scraping: ${err.message}`);
         await browser.close();
@@ -172,7 +174,7 @@ async function sendReviews(reviews, hotelId) {
             console.log('ℹ️ No valid reviews found.');
         }
     } catch (error) {
-        console.error('❌ Error sending data:', error.message);
+        throw new Error(`Failed to send reviews: ${error.message}`);
     }
 }
 
