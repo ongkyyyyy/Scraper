@@ -15,16 +15,37 @@ async function scrapeReviews() {
     }
 
     const browser = await puppeteer.launch({
-        headless: false,
+        headless: false, // set to false for headful testing
         defaultViewport: null,
         args: ["--start-maximized", "--no-sandbox", "--disable-setuid-sandbox"]
     });
 
     const page = await browser.newPage();
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36');
+    await page.setUserAgent(
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
+    );
+
+    page.on('dialog', async dialog => {
+        console.log(`🟡 Dismissing popup: ${dialog.message()}`);
+        await dialog.dismiss();
+    });
 
     try {
+        console.log(`🌐 Navigating to hotel URL: ${hotelUrl}`);
         await page.goto(hotelUrl, { waitUntil: 'domcontentloaded' });
+        await page.waitForTimeout(1500);
+
+        // Attempt to close popups
+        try {
+            await page.waitForSelector('[class*="close"], [data-testid*="close"], button[aria-label="Close"]', { timeout: 5000 });
+            await page.evaluate(() => {
+                const closeBtn = document.querySelector('[class*="close"], [data-testid*="close"], button[aria-label="Close"]');
+                if (closeBtn) closeBtn.click();
+            });
+            console.log("✅ Closed popup/modal");
+        } catch {
+            console.log("ℹ️ No popup detected");
+        }
 
         const hotelName = await page.evaluate(() => {
             const el = document.querySelector('h1[data-testid="name"]');
@@ -41,7 +62,6 @@ async function scrapeReviews() {
         }
 
         // Click "Sort"
-        await page.waitForSelector("button span", { timeout: 10000 });
         const sortBtnHandle = await page.evaluateHandle(() => {
             return Array.from(document.querySelectorAll("button span"))
                 .find(el => el.innerText.trim() === "Sort");
@@ -73,7 +93,7 @@ async function scrapeReviews() {
         let retryCount = 0;
 
         while (true) {
-            console.log(`Scraping page ${pageCounter}...`);
+            console.log(`📄 Scraping page ${pageCounter}...`);
             await page.waitForTimeout(2000);
 
             const reviews = await page.evaluate(hotelName => {
@@ -111,7 +131,7 @@ async function scrapeReviews() {
             }, hotelName);
 
             if (reviews.length === 0 || (reviews[0].comment === lastComment && retryCount++ >= 2)) {
-                console.log("No new reviews or duplicate page, stopping.");
+                console.log("⚠️ No new reviews or repeated content, stopping.");
                 break;
             }
 
@@ -121,7 +141,7 @@ async function scrapeReviews() {
             for (const review of reviews) {
                 const year = parseInt(review.timestamp.split("-")[2], 10);
                 if (year < 2024) {
-                    console.log("Found review before 2024, stopping.");
+                    console.log("🛑 Found old review before 2024, stopping.");
                     await sendReviews(allReviews, hotelId);
                     await browser.close();
                     return;
@@ -129,17 +149,17 @@ async function scrapeReviews() {
                 allReviews.push(review);
             }
 
-            console.log(`Collected ${reviews.length} reviews from page ${pageCounter}.`);
+            console.log(`✅ Collected ${reviews.length} reviews from page ${pageCounter}.`);
 
             const nextBtn = await page.$('div[data-testid="chevron-right-pagination"]');
             if (!nextBtn) {
-                console.log("No more pages.");
+                console.log("🚫 No more pagination button found.");
                 break;
             }
 
             const isDisabled = await page.evaluate(btn => btn.getAttribute('aria-disabled') === 'true', nextBtn);
             if (isDisabled) {
-                console.log("Next button is disabled.");
+                console.log("⛔ 'Next' button is disabled. Ending pagination.");
                 break;
             }
 
@@ -148,7 +168,7 @@ async function scrapeReviews() {
             pageCounter++;
         }
 
-        console.log("Total Reviews:", allReviews.length);
+        console.log(`🎉 Total Reviews Scraped: ${allReviews.length}`);
         await sendReviews(allReviews, hotelId);
     } catch (err) {
         console.error("❌ Scraper failed:", err.message);
@@ -159,7 +179,7 @@ async function scrapeReviews() {
 
 async function sendReviews(reviews, hotelId) {
     if (!reviews.length) {
-        console.log("No reviews to send.");
+        console.log("ℹ️ No reviews to send.");
         return;
     }
 
