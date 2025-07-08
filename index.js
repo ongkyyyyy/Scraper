@@ -27,24 +27,16 @@ app.get('/api/:source', (req, res) => {
   const scriptPath = path.join(__dirname, scraperMap[source]);
   const command = `node "${scriptPath}" "${hotelUrl}" "${hotelId}"`;
 
-  console.log(`🚀 Executing: ${command}`);
-
   exec(command, (error, stdout, stderr) => {
     if (error) {
-      console.error(`❌ Scraper error: ${stderr || error.message}`);
-      return res.status(500).json({ error: `Scraper failed: ${error.message}` });
+      console.error(`❌ Scraper failed: ${stderr || error.message}`);
+    } else {
+      console.log(`✅ Scraper completed: ${stdout}`);
     }
-
-    console.log(`✅ Scraper completed:\n${stdout}`);
-
-    const outputLines = stdout.trim().split('\n');
-    const lastLine = outputLines[outputLines.length - 1];
-
-    return res.status(200).json({
-      message: lastLine || 'Scraper finished.',
-      raw_output: stdout
-    });
   });
+
+  res.json({ message: `Scraper for ${source} started.` });
 });
+
 
 app.listen(PORT, () => console.log(`🚀 Scraper API running on http://localhost:${PORT}`));
