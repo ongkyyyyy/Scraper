@@ -35,7 +35,7 @@ async function scrapeReviews() {
         await page.goto(hotelUrl, { waitUntil: 'domcontentloaded' });
         await page.waitForTimeout(1500);
 
-        // Attempt to close popups
+        // Close popup if it appears
         try {
             await page.waitForSelector('[class*="close"], [data-testid*="close"], button[aria-label="Close"]', { timeout: 5000 });
             await page.evaluate(() => {
@@ -52,40 +52,41 @@ async function scrapeReviews() {
             return el ? el.innerText.trim() : 'Unknown Hotel';
         });
 
-        // Click "Lihat semua"
-        const seeAll = await page.$('span[data-testid="see-all"]');
-        if (seeAll) {
-            await page.evaluate(el => el.scrollIntoView({ behavior: 'smooth' }), seeAll);
-            await page.waitForTimeout(1000);
-            await seeAll.click();
-            await page.waitForTimeout(2000);
-        }
+        // Click "Lihat semua" using specific class
+        await page.evaluate(() => {
+            const buttons = Array.from(document.querySelectorAll('span[data-testid="see-all"]'));
+            const target = buttons.find(el =>
+                el.innerText.trim() === "Lihat semua" &&
+                el.className.includes("rr___ReviewWidget-module__button_see_all____NWyR")
+            );
+            if (target) {
+                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                target.click();
+            }
+        });
+        await page.waitForTimeout(2000);
 
         // Click "Sort"
-        const sortBtnHandle = await page.evaluateHandle(() => {
-            return Array.from(document.querySelectorAll("button span"))
+        await page.evaluate(() => {
+            const sortBtn = Array.from(document.querySelectorAll("button span"))
                 .find(el => el.innerText.trim() === "Sort");
+            if (sortBtn) {
+                sortBtn.scrollIntoView({ behavior: 'smooth' });
+                sortBtn.click();
+            }
         });
-
-        if (sortBtnHandle) {
-            await page.evaluate(el => el.scrollIntoView({ behavior: 'smooth' }), sortBtnHandle);
-            await page.waitForTimeout(1000);
-            await page.evaluate(el => el.click(), sortBtnHandle);
-            await page.waitForTimeout(1000);
-        }
+        await page.waitForTimeout(1000);
 
         // Click "Latest Review"
-        const latestReviewHandle = await page.evaluateHandle(() => {
-            return Array.from(document.querySelectorAll("span"))
+        await page.evaluate(() => {
+            const latestBtn = Array.from(document.querySelectorAll("span"))
                 .find(el => el.innerText.trim() === "Latest Review");
+            if (latestBtn) {
+                latestBtn.scrollIntoView({ behavior: 'smooth' });
+                latestBtn.click();
+            }
         });
-
-        if (latestReviewHandle) {
-            await page.evaluate(el => el.scrollIntoView({ behavior: 'smooth' }), latestReviewHandle);
-            await page.waitForTimeout(1000);
-            await page.evaluate(el => el.click(), latestReviewHandle);
-            await page.waitForTimeout(2000);
-        }
+        await page.waitForTimeout(2000);
 
         let allReviews = [];
         let pageCounter = 1;
@@ -184,7 +185,7 @@ async function sendReviews(reviews, hotelId) {
     }
 
     try {
-        const response = await axios.post(`${BACKEND_URL}/reviews`, {
+        await axios.post(`${BACKEND_URL}/reviews`, {
             reviews,
             hotel_id: hotelId,
             ota: "tiket.com"
