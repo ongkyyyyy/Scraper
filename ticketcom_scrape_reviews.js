@@ -52,7 +52,7 @@ async function scrapeReviews() {
     if (seeAllButton) {
         console.log("Scrolling to 'Lihat Semua' button...");
         await seeAllButton.evaluate(el => el.scrollIntoView({ behavior: "smooth", block: "center" }));
-        await page.waitForTimeout(1000);
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
         console.log("Clicking 'Lihat Semua' button...");
         await seeAllButton.evaluate(el => {
@@ -73,7 +73,7 @@ async function scrapeReviews() {
     if (sortText.length > 0) {
         console.log("Scrolling to 'Sort' text...");
         await sortText[0].evaluate(el => el.scrollIntoView({ behavior: "smooth", block: "center" }));
-        await page.waitForTimeout(1000);
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
         console.log("Clicking 'Sort' text...");
         await sortText[0].evaluate(el => el.click());
@@ -92,7 +92,7 @@ async function scrapeReviews() {
     if (latestReviewOption.length > 0) {
         console.log("Scrolling to 'Latest Review' option...");
         await latestReviewOption[0].evaluate(el => el.scrollIntoView({ behavior: "smooth", block: "center" }));
-        await page.waitForTimeout(1000);
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
         console.log("Clicking 'Latest Review' option...");
         await latestReviewOption[0].evaluate(el => el.click());
@@ -109,7 +109,7 @@ async function scrapeReviews() {
 
     while (true) {
         console.log(`Scraping page ${pageCounter}...`);
-        await page.waitForTimeout(3000); 
+        await new Promise(resolve => setTimeout(resolve, 3000));
 
         let reviews = [];
 
@@ -194,7 +194,7 @@ async function scrapeReviews() {
 
         console.log("Navigating to the next page...");
         await nextPageButton.click();
-        await page.waitForTimeout(3000);
+        await new Promise(resolve => setTimeout(resolve, 3000));
         pageCounter++;
     }
 
