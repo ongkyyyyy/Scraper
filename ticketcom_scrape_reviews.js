@@ -15,7 +15,7 @@ async function scrapeReviews() {
     }
 
     const browser = await puppeteer.launch({
-        headless: 'new',
+        headless: false,
         defaultViewport: null,
         args: ["--start-maximized", "--no-sandbox", "--disable-setuid-sandbox"]
     });
