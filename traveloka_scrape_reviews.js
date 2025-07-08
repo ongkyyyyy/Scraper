@@ -108,7 +108,8 @@ async function scrapeReviews(retryAttempt = 0) {
                     console.log("Total Reviews Scraped:", allReviews.length);
                     await sendReviews(allReviews, hotelId);
                     await browser.close();
-                    return;
+                    process.exit(0);
+                    // return;
                 }
                 allReviews.push(review);
             }
@@ -147,8 +148,8 @@ async function scrapeReviews(retryAttempt = 0) {
             return scrapeReviews(retryAttempt + 1);
         } else {
             console.error("❌ Max retry attempts reached. Giving up.");
+            process.exit(1);
         }
-        return;
     }
 
     console.log("Closing browser...");
