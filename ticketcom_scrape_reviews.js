@@ -31,11 +31,7 @@ const hotelUrl = process.argv[2];
         });
         console.log(`🏨 Hotel Name: ${hotelName}`);
 
-        // Scroll to bottom slowly to reveal 'Lihat semua'
-        for (let i = 0; i < 10; i++) {
-            await page.evaluate(() => window.scrollBy(0, window.innerHeight));
-            await new Promise(resolve => setTimeout(resolve, 500)); 
-        }
+        await new Promise(resolve => setTimeout(resolve, 15000));
 
         // Click the correct 'Lihat semua'
         const seeAllButtons = await page.$$('span[data-testid="see-all"]');
