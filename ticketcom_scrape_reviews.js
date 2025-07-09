@@ -47,25 +47,24 @@ async function scrapeReviews() {
     console.log(`Hotel Name: ${hotelName}`);
 
     console.log("Searching for 'Lihat Semua' button...");
-    const seeAllButton = await page.$('span[data-testid="see-all"]');
+    const seeAllButton = await page.evaluateHandle(() => {
+        return Array.from(document.querySelectorAll('span[data-testid="see-all"]'))
+            .find(el => el.textContent.trim() === 'Lihat semua');
+    });
 
     if (seeAllButton) {
-        console.log("Scrolling to and clicking 'Lihat Semua'...");
-
-        await seeAllButton.evaluate(el => el.scrollIntoView({ behavior: "smooth", block: "center" }));
-        await new Promise(resolve => setTimeout(resolve, 1000)); 
-
-        const text = await page.evaluate(el => el.textContent.trim(), seeAllButton);
-        if (text === "Lihat semua") {
+        try {
+            await page.evaluate(el => {
+                el.scrollIntoView({ behavior: "smooth", block: "center" });
+            }, seeAllButton);
+            await page.waitForTimeout(1000);
             await seeAllButton.click();
             console.log("✅ Successfully clicked 'Lihat Semua'!");
-        } else {
-            console.log("⚠️ Found the button but text was not 'Lihat semua' — got:", text);
+        } catch (err) {
+            console.error("❌ Error clicking 'Lihat Semua':", err.message);
         }
-
-        console.log("✅ Successfully clicked 'Lihat Semua'!");
     } else {
-        console.log("❌ Error: 'Lihat Semua' button not found.");
+        console.log("❌ 'Lihat Semua' button not found.");
     }
 
     console.log("Searching for 'Sort' text...");
