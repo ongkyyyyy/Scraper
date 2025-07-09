@@ -15,7 +15,7 @@ async function scrapeReviews() {
     }
 
     const browser = await puppeteer.launch({
-        headless: "new",
+        headless: "new", // ✅ Headless for Railway
         defaultViewport: null,
         args: [
             "--start-maximized",
@@ -25,14 +25,15 @@ async function scrapeReviews() {
     });
 
     const page = await browser.newPage();
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36');
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64)...');
 
     try {
         console.log(`🌐 Navigating to: ${hotelUrl}`);
         await page.goto(hotelUrl, { waitUntil: 'domcontentloaded' });
         await page.waitForTimeout(2000);
+        console.log("✅ Page loaded");
 
-        // Close promo popup if exists
+        // Close promo popup
         try {
             await page.evaluate(() => {
                 const btn = document.querySelector('button[data-role="secondaryCtaClose"]');
@@ -46,6 +47,9 @@ async function scrapeReviews() {
 
         // Click 'Lihat semua'
         try {
+            await page.waitForSelector('span[data-testid="see-all"]', { timeout: 10000 });
+            console.log("✅ 'Lihat semua' button found");
+
             await page.evaluate(() => {
                 const btn = document.querySelector('span[data-testid="see-all"]');
                 if (btn) {
@@ -53,14 +57,15 @@ async function scrapeReviews() {
                     btn.click();
                 }
             });
-            console.log("✅ Clicked 'Lihat semua'");
+
+            console.log("✅ Clicked 'Lihat semua' button");
             await page.waitForSelector('[data-testid="review-card"]', { timeout: 10000 });
-            console.log("✅ Review drawer loaded");
+            console.log("✅ Reviews section loaded");
         } catch (err) {
-            console.error("❌ Failed to click 'Lihat semua':", err.message);
+            console.error("❌ Failed to click or load 'Lihat semua':", err.message);
         }
 
-        // Click 'Sort' and 'Latest Review'
+        // Sort by 'Latest Review'
         try {
             await page.evaluate(() => {
                 const sortBtn = Array.from(document.querySelectorAll("button span"))
@@ -178,7 +183,7 @@ async function sendReviews(reviews, hotelId) {
             await axios.post(`${BACKEND_URL}/reviews`, {
                 reviews,
                 hotel_id: hotelId,
-                ota: "tiket.com"
+                ota: "ticket.com"
             });
             console.log('✅ Data sent to backend successfully');
             console.log('Total Reviews Sent:', reviews.length);
