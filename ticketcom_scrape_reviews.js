@@ -47,24 +47,29 @@ async function scrapeReviews() {
     console.log(`Hotel Name: ${hotelName}`);
 
     console.log("Searching for 'Lihat Semua' button...");
-    const seeAllButton = await page.evaluateHandle(() => {
-        return Array.from(document.querySelectorAll('span[data-testid="see-all"]'))
-            .find(el => el.textContent.trim() === 'Lihat semua');
+    console.log("Looking for the correct 'Lihat semua' button...");
+
+    const clickedSeeAll = await page.evaluate(() => {
+        const buttons = Array.from(document.querySelectorAll('span[data-testid="see-all"]'));
+
+        const target = buttons.find(btn => 
+            btn.textContent.trim() === "Lihat semua" &&
+            btn.className.includes("ReviewWidget-module__button_see_all")
+        );
+
+        if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            target.click();
+            return true;
+        }
+        return false;
     });
 
-    if (seeAllButton) {
-        try {
-            await page.evaluate(el => {
-                el.scrollIntoView({ behavior: "smooth", block: "center" });
-            }, seeAllButton);
-            await page.waitForTimeout(1000);
-            await seeAllButton.click();
-            console.log("✅ Successfully clicked 'Lihat Semua'!");
-        } catch (err) {
-            console.error("❌ Error clicking 'Lihat Semua':", err.message);
-        }
+    if (clickedSeeAll) {
+        console.log("✅ Clicked the correct 'Lihat semua' button");
+        await page.waitForTimeout(2000);
     } else {
-        console.log("❌ 'Lihat Semua' button not found.");
+        console.log("❌ Could not find the correct 'Lihat semua' button");
     }
 
     console.log("Searching for 'Sort' text...");
