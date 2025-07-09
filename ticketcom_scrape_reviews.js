@@ -77,7 +77,7 @@ for (const btn of allSeeAllButtons) {
 
 // === Sort Button ===
 console.log("Looking for 'Sort' button...");
-await new Promise(resolve => setTimeout(resolve, 1000));
+await new Promise(resolve => setTimeout(resolve, 4000));
 
 let clickedSort = false;
 
@@ -104,7 +104,7 @@ if (!clickedSort) {
 
 // === Latest Review ===
 console.log("Looking for 'Latest Review' option...");
-await new Promise(resolve => setTimeout(resolve, 1000));
+await new Promise(resolve => setTimeout(resolve, 4000));
 
 let clickedLatest = false;
 
