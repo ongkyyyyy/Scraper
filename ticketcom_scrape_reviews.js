@@ -46,33 +46,34 @@ async function scrapeReviews() {
     
     console.log(`Hotel Name: ${hotelName}`);
 
-console.log("Scrolling gradually to trigger review section...");
-for (let i = 0; i < 10; i++) {
-    await page.evaluate(() => window.scrollBy(0, window.innerHeight / 2));
-    await new Promise(resolve => setTimeout(resolve, 1000));
-}
 console.log("Waiting for 'Lihat semua' button to appear...");
-
-try {
-    await page.waitForSelector('span[data-testid="see-all"]', { timeout: 5000 });
-    console.log("✅ 'Lihat semua' button appeared.");
-} catch (e) {
-    console.log("❌ 'Lihat semua' button still not visible after scrolling.");
-}
+await page.waitForSelector('span[data-testid="see-all"]', { timeout: 15000 });
 
 const allSeeAllButtons = await page.$$('span[data-testid="see-all"]');
+let clicked = false;
+
 for (const btn of allSeeAllButtons) {
-    const text = await page.evaluate(el => el.textContent.trim(), btn);
-    const className = await page.evaluate(el => el.className, btn);
+    const [text, className] = await Promise.all([
+        page.evaluate(el => el.textContent.trim(), btn),
+        page.evaluate(el => el.className, btn),
+    ]);
 
     if (text === "Lihat semua" && className.includes("ReviewWidget-module__button_see_all")) {
+        const outerHTML = await page.evaluate(el => el.outerHTML, btn);
+        console.log("✅ Will click this 'Lihat semua' button:\n", outerHTML);
+
         await btn.evaluate(el => el.scrollIntoView({ behavior: 'smooth', block: 'center' }));
         await new Promise(resolve => setTimeout(resolve, 1000));
         await btn.click();
         await new Promise(resolve => setTimeout(resolve, 2000));
+        clicked = true;
         console.log("✅ Clicked 'Lihat semua' button");
         break;
     }
+}
+
+if (!clicked) {
+    console.log("❌ Correct 'Lihat semua' button not found.");
 }
 
 console.log("Looking for 'Sort' dropdown...");
