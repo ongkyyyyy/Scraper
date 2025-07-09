@@ -50,19 +50,18 @@ async function scrapeReviews() {
     const seeAllButton = await page.$('span[data-testid="see-all"]');
 
     if (seeAllButton) {
-        console.log("Scrolling to 'Lihat Semua' button...");
-        await page.evaluate(element => {
-            element.scrollIntoView({ behavior: "smooth", block: "center" });
-        }, seeAllButton);
+        console.log("Scrolling to and clicking 'Lihat Semua'...");
 
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await seeAllButton.evaluate(el => el.scrollIntoView({ behavior: "smooth", block: "center" }));
+        await page.waitForTimeout(1000);
 
-        console.log("Clicking 'Lihat Semua' button...");
-        await page.evaluate(element => {
-            if (element.innerText.trim() === "Lihat semua") {
-                element.click();
-            }
-        }, seeAllButton);
+        const text = await page.evaluate(el => el.textContent.trim(), seeAllButton);
+        if (text === "Lihat semua") {
+            await seeAllButton.click();
+            console.log("✅ Successfully clicked 'Lihat Semua'!");
+        } else {
+            console.log("⚠️ Found the button but text was not 'Lihat semua' — got:", text);
+        }
 
         console.log("✅ Successfully clicked 'Lihat Semua'!");
     } else {
