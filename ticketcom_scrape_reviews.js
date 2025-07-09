@@ -34,7 +34,7 @@ const hotelUrl = process.argv[2];
         // Scroll to bottom slowly to reveal 'Lihat semua'
         for (let i = 0; i < 10; i++) {
             await page.evaluate(() => window.scrollBy(0, window.innerHeight));
-            await page.waitForTimeout(500);
+            await new Promise(resolve => setTimeout(resolve, 500)); 
         }
 
         // Click the correct 'Lihat semua'
@@ -63,7 +63,7 @@ const hotelUrl = process.argv[2];
         const sortBtn = await page.$x("//button[contains(., 'Sort')]");
         if (sortBtn.length > 0) {
             await sortBtn[0].click();
-            await page.waitForTimeout(1000);
+            await new Promise(resolve => setTimeout(resolve, 1000)); 
             const latest = await page.$x("//span[contains(., 'Latest Review')]");
             if (latest.length > 0) {
                 await latest[0].click();
