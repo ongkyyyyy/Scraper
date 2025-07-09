@@ -76,11 +76,16 @@ for (const btn of allSeeAllButtons) {
 }
 
 console.log("Looking for 'Sort' dropdown...");
-await new Promise(resolve => setTimeout(resolve, 3000));
+
 try {
-    // Wait for the sort button inside the known div structure
-    await page.waitForSelector('div[data-testid="sort-base-dropdown"] button', { timeout: 10000 });
-    const sortButton = await page.$('div[data-testid="sort-base-dropdown"] button');
+    // Wait for any button with "Sort" in it (less brittle than specific testid structure)
+    await page.waitForFunction(() => {
+        return Array.from(document.querySelectorAll('button')).some(btn => btn.textContent.trim() === 'Sort');
+    }, { timeout: 15000 });
+
+    const sortButton = await page.evaluateHandle(() => {
+        return Array.from(document.querySelectorAll('button')).find(btn => btn.textContent.trim() === 'Sort');
+    });
 
     if (sortButton) {
         await sortButton.evaluate(el => el.scrollIntoView({ behavior: "smooth", block: "center" }));
@@ -88,12 +93,13 @@ try {
         await sortButton.click();
         console.log("✅ Clicked 'Sort' dropdown");
 
-        // Wait for the radio label to appear that contains "Latest Review"
-        await page.waitForSelector('label span.Text_text__MwfKw', { timeout: 10000 });
+        // Wait for the "Latest Review" radio span
+        await page.waitForFunction(() => {
+            return Array.from(document.querySelectorAll('span')).some(el => el.textContent.trim() === 'Latest Review');
+        }, { timeout: 10000 });
 
         const latestReviewSpan = await page.evaluateHandle(() => {
-            return Array.from(document.querySelectorAll('label span.Text_text__MwfKw'))
-                .find(el => el.innerText.trim() === "Latest Review");
+            return Array.from(document.querySelectorAll('span')).find(el => el.textContent.trim() === 'Latest Review');
         });
 
         if (latestReviewSpan) {
@@ -102,7 +108,7 @@ try {
             await latestReviewSpan.click();
             console.log("✅ Clicked 'Latest Review' option");
         } else {
-            console.log("❌ 'Latest Review' span not found");
+            console.log("❌ 'Latest Review' option not found");
         }
     } else {
         console.log("❌ 'Sort' button not found");
@@ -110,6 +116,7 @@ try {
 } catch (error) {
     console.log("❌ Error during 'Sort' selection:", error.message);
 }
+
 
     let allReviews = [];
     let pageCounter = 1;
