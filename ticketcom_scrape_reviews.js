@@ -15,17 +15,13 @@ async function scrapeReviews() {
     }
 
     const browser = await puppeteer.launch({
-        headless: "new", // ✅ Headless for Railway
+        headless: true,  // 👈 HEADLESS FOR RAILWAY
         defaultViewport: null,
-        args: [
-            "--start-maximized",
-            "--no-sandbox",
-            "--disable-setuid-sandbox"
-        ]
+        args: ["--no-sandbox", "--disable-setuid-sandbox"]
     });
 
     const page = await browser.newPage();
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64)...');
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36');
 
     try {
         console.log(`🌐 Navigating to: ${hotelUrl}`);
@@ -33,39 +29,37 @@ async function scrapeReviews() {
         await page.waitForTimeout(2000);
         console.log("✅ Page loaded");
 
-        // Close promo popup
-        try {
-            await page.evaluate(() => {
-                const btn = document.querySelector('button[data-role="secondaryCtaClose"]');
-                if (btn) btn.click();
-            });
-            console.log("✅ Promo popup closed");
+        // 🔍 DEBUG: Check initial render
+        const contentLength = (await page.content()).length;
+        console.log("🪵 Page content length:", contentLength);
+
+        // ⛔ Promo popup check
+        const promoBtn = await page.$('button[data-role="secondaryCtaClose"]');
+        if (promoBtn) {
+            console.log("✅ Promo popup detected, clicking close button...");
+            await promoBtn.click();
             await page.waitForTimeout(1000);
-        } catch {
+        } else {
             console.log("ℹ️ No promo popup found");
         }
 
-        // Click 'Lihat semua'
-        try {
-            await page.waitForSelector('span[data-testid="see-all"]', { timeout: 10000 });
-            console.log("✅ 'Lihat semua' button found");
-
+        // ⛔ 'Lihat semua' button check
+        const seeAllBtn = await page.$('span[data-testid="see-all"]');
+        if (seeAllBtn) {
+            console.log("✅ 'Lihat semua' button found. Clicking...");
             await page.evaluate(() => {
-                const btn = document.querySelector('span[data-testid="see-all"]');
-                if (btn) {
-                    btn.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    btn.click();
+                const seeAll = document.querySelector('span[data-testid="see-all"]');
+                if (seeAll) {
+                    seeAll.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    seeAll.click();
                 }
             });
-
-            console.log("✅ Clicked 'Lihat semua' button");
-            await page.waitForSelector('[data-testid="review-card"]', { timeout: 10000 });
-            console.log("✅ Reviews section loaded");
-        } catch (err) {
-            console.error("❌ Failed to click or load 'Lihat semua':", err.message);
+            await page.waitForTimeout(2000);
+        } else {
+            throw new Error("❌ 'Lihat semua' button not found — page may not have loaded reviews");
         }
 
-        // Sort by 'Latest Review'
+        // ⛔ Click Sort -> Latest Review
         try {
             await page.evaluate(() => {
                 const sortBtn = Array.from(document.querySelectorAll("button span"))
@@ -73,16 +67,14 @@ async function scrapeReviews() {
                 if (sortBtn) sortBtn.click();
             });
             await page.waitForTimeout(1000);
-
             await page.evaluate(() => {
                 const latestBtn = Array.from(document.querySelectorAll("span"))
                     .find(el => el.innerText.trim() === "Latest Review");
                 if (latestBtn) latestBtn.click();
             });
             console.log("✅ Sorted by latest reviews");
-            await page.waitForTimeout(2000);
         } catch (err) {
-            console.error("❌ Failed to sort by latest reviews:", err.message);
+            console.warn("⚠️ Sort interaction failed:", err.message);
         }
 
         let allReviews = [];
@@ -187,7 +179,6 @@ async function sendReviews(reviews, hotelId) {
             });
             console.log('✅ Data sent to backend successfully');
             console.log('Total Reviews Sent:', reviews.length);
-            console.log('Hotel ID:', hotelId);
         } else {
             console.log('ℹ️ No valid reviews found.');
         }
