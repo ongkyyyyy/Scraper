@@ -76,31 +76,40 @@ for (const btn of allSeeAllButtons) {
 }
 
 console.log("Looking for 'Sort' dropdown...");
-const sortBtn = await page.$('div[data-testid="sort-base-dropdown"] button');
+await new Promise(resolve => setTimeout(resolve, 3000));
+try {
+    // Wait for the sort button inside the known div structure
+    await page.waitForSelector('div[data-testid="sort-base-dropdown"] button', { timeout: 10000 });
+    const sortButton = await page.$('div[data-testid="sort-base-dropdown"] button');
 
-if (sortBtn) {
-    await sortBtn.evaluate(el => el.scrollIntoView({ behavior: "smooth", block: "center" }));
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    await sortBtn.click();
-    console.log("✅ Clicked 'Sort' dropdown");
-
-    // Wait for the dropdown menu to fully appear
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // Now select the "Latest Review" option
-    const latestReviewOption = await page.$x("//span[contains(text(), 'Latest Review')]");
-    if (latestReviewOption.length > 0) {
-        await latestReviewOption[0].evaluate(el => el.scrollIntoView({ behavior: "smooth", block: "center" }));
+    if (sortButton) {
+        await sortButton.evaluate(el => el.scrollIntoView({ behavior: "smooth", block: "center" }));
         await new Promise(resolve => setTimeout(resolve, 1000));
-        await latestReviewOption[0].click();
-        console.log("✅ Clicked 'Latest Review' option");
-    } else {
-        console.log("❌ 'Latest Review' option not found");
-    }
-} else {
-    console.log("❌ 'Sort' button not found");
-}
+        await sortButton.click();
+        console.log("✅ Clicked 'Sort' dropdown");
 
+        // Wait for the radio label to appear that contains "Latest Review"
+        await page.waitForSelector('label span.Text_text__MwfKw', { timeout: 10000 });
+
+        const latestReviewSpan = await page.evaluateHandle(() => {
+            return Array.from(document.querySelectorAll('label span.Text_text__MwfKw'))
+                .find(el => el.innerText.trim() === "Latest Review");
+        });
+
+        if (latestReviewSpan) {
+            await latestReviewSpan.evaluate(el => el.scrollIntoView({ behavior: "smooth", block: "center" }));
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            await latestReviewSpan.click();
+            console.log("✅ Clicked 'Latest Review' option");
+        } else {
+            console.log("❌ 'Latest Review' span not found");
+        }
+    } else {
+        console.log("❌ 'Sort' button not found");
+    }
+} catch (error) {
+    console.log("❌ Error during 'Sort' selection:", error.message);
+}
 
     let allReviews = [];
     let pageCounter = 1;
