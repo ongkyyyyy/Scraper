@@ -75,58 +75,30 @@ for (const btn of allSeeAllButtons) {
     }
 }
 
-// === Sort Button ===
-console.log("Looking for 'Sort' button...");
-await new Promise(resolve => setTimeout(resolve, 4000));
+console.log("Looking for 'Sort' dropdown...");
+const sortBtn = await page.$('div[data-testid="sort-base-dropdown"] button');
 
-let clickedSort = false;
+if (sortBtn) {
+    await sortBtn.evaluate(el => el.scrollIntoView({ behavior: "smooth", block: "center" }));
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    await sortBtn.click();
+    console.log("✅ Clicked 'Sort' dropdown");
 
-try {
-    const sortButtons = await page.$$('button span');
-    for (const span of sortButtons) {
-        const text = await page.evaluate(el => el.textContent.trim(), span);
-        if (text === "Sort") {
-            await span.evaluate(el => el.scrollIntoView({ behavior: "smooth", block: "center" }));
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            await span.click();
-            clickedSort = true;
-            console.log("✅ Clicked 'Sort' button");
-            break;
-        }
+    // Wait for the dropdown menu to fully appear
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Now select the "Latest Review" option
+    const latestReviewOption = await page.$x("//span[contains(text(), 'Latest Review')]");
+    if (latestReviewOption.length > 0) {
+        await latestReviewOption[0].evaluate(el => el.scrollIntoView({ behavior: "smooth", block: "center" }));
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await latestReviewOption[0].click();
+        console.log("✅ Clicked 'Latest Review' option");
+    } else {
+        console.log("❌ 'Latest Review' option not found");
     }
-} catch (err) {
-    console.log("❌ Error looking for 'Sort':", err.message);
-}
-
-if (!clickedSort) {
+} else {
     console.log("❌ 'Sort' button not found");
-}
-
-// === Latest Review ===
-console.log("Looking for 'Latest Review' option...");
-await new Promise(resolve => setTimeout(resolve, 4000));
-
-let clickedLatest = false;
-
-try {
-    const spans = await page.$$('span');
-    for (const span of spans) {
-        const text = await page.evaluate(el => el.textContent.trim(), span);
-        if (text === "Latest Review") {
-            await span.evaluate(el => el.scrollIntoView({ behavior: "smooth", block: "center" }));
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            await span.click();
-            clickedLatest = true;
-            console.log("✅ Clicked 'Latest Review' option");
-            break;
-        }
-    }
-} catch (err) {
-    console.log("❌ Error looking for 'Latest Review':", err.message);
-}
-
-if (!clickedLatest) {
-    console.log("❌ 'Latest Review' option not found");
 }
 
 
