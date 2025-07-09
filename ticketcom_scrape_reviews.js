@@ -20,24 +20,20 @@ async function scrapeReviews() {
         args: [
             "--start-maximized",
             "--no-sandbox",
-            "--disable-setuid-sandbox",
+            "--disable-setuid-sandbox"
         ]
     });
 
     const page = await browser.newPage();
-    await page.setUserAgent(
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
-    );
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36');
 
     try {
         console.log(`🌐 Navigating to: ${hotelUrl}`);
         await page.goto(hotelUrl, { waitUntil: 'domcontentloaded' });
         await page.waitForTimeout(2000);
-        console.log("✅ Page loaded");
 
-        // Close promo popup
+        // Close promo popup if exists
         try {
-            console.log("👉 Checking for promo popup...");
             await page.evaluate(() => {
                 const btn = document.querySelector('button[data-role="secondaryCtaClose"]');
                 if (btn) btn.click();
@@ -50,36 +46,33 @@ async function scrapeReviews() {
 
         // Click 'Lihat semua'
         try {
-            console.log("👉 Looking for 'Lihat semua' button...");
             await page.evaluate(() => {
-                const spans = Array.from(document.querySelectorAll('span'));
-                const btn = spans.find(el => el.textContent.toLowerCase().includes('lihat semua'));
+                const btn = document.querySelector('span[data-testid="see-all"]');
                 if (btn) {
                     btn.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     btn.click();
                 }
             });
             console.log("✅ Clicked 'Lihat semua'");
-            await page.waitForTimeout(2000);
+            await page.waitForSelector('[data-testid="review-card"]', { timeout: 10000 });
+            console.log("✅ Review drawer loaded");
         } catch (err) {
             console.error("❌ Failed to click 'Lihat semua':", err.message);
         }
 
-        // Click 'Sort' → 'Latest Review'
+        // Click 'Sort' and 'Latest Review'
         try {
-            console.log("👉 Clicking sort...");
             await page.evaluate(() => {
-                const btn = Array.from(document.querySelectorAll("button span"))
+                const sortBtn = Array.from(document.querySelectorAll("button span"))
                     .find(el => el.innerText.trim() === "Sort");
-                if (btn) btn.click();
+                if (sortBtn) sortBtn.click();
             });
             await page.waitForTimeout(1000);
 
-            console.log("👉 Selecting 'Latest Review'...");
             await page.evaluate(() => {
-                const latest = Array.from(document.querySelectorAll("span"))
+                const latestBtn = Array.from(document.querySelectorAll("span"))
                     .find(el => el.innerText.trim() === "Latest Review");
-                if (latest) latest.click();
+                if (latestBtn) latestBtn.click();
             });
             console.log("✅ Sorted by latest reviews");
             await page.waitForTimeout(2000);
@@ -91,8 +84,6 @@ async function scrapeReviews() {
         let pageCounter = 1;
         let lastComment = '';
         let retryCount = 0;
-
-        console.log("📥 Starting to scrape reviews...");
 
         while (true) {
             console.log(`📄 Scraping page ${pageCounter}...`);
@@ -132,8 +123,6 @@ async function scrapeReviews() {
                 }).filter(r => r.comment && r.rating !== null && r.rating > 0);
             });
 
-            console.log(`📌 Extracted ${reviews.length} reviews`);
-
             if (reviews.length === 0 || (reviews[0].comment === lastComment && retryCount++ >= 2)) {
                 console.log("⚠️ No new reviews or repeated content, stopping.");
                 break;
@@ -166,8 +155,7 @@ async function scrapeReviews() {
             }
 
             await page.evaluate(() => {
-                const next = document.querySelector('[data-testid="chevron-right-pagination"]');
-                if (next) next.click();
+                document.querySelector('[data-testid="chevron-right-pagination"]').click();
             });
             await page.waitForTimeout(3000);
             pageCounter++;
