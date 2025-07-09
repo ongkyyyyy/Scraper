@@ -14,103 +14,64 @@ const hotelUrl = process.argv[2];
         process.exit(1);
     }
 
-    console.log("Launching Puppeteer with Stealth Plugin...");
     const browser = await puppeteer.launch({
         headless: 'new',
         defaultViewport: null,
-        args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-infobars',
-            '--disable-extensions',
-            '--disable-gpu',
-            '--window-size=1920,1080'
-        ]
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
 
     const page = await browser.newPage();
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36');
 
-    page.on('dialog', async dialog => {
-        console.log(`Dismissing popup: ${dialog.message()}`);
-        await dialog.dismiss();
-    });
+    await page.goto(hotelUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
-    console.log(`Opening the hotel page: ${hotelUrl}`);
-    await page.goto(hotelUrl, { waitUntil: 'domcontentloaded' });
+        const hotelName = await page.evaluate(() => {
+            const el = document.querySelector('h1[data-testid="name"]');
+            return el ? el.innerText.trim() : "Unknown Hotel";
+        });
+        console.log(`🏨 Hotel Name: ${hotelName}`);
 
-    const hotelName = await page.evaluate(() => {
-        const hotelNameElem = document.querySelector('h1[data-testid="name"]');
-        return hotelNameElem ? hotelNameElem.innerText.trim() : 'Unknown Hotel';
-    });
-    console.log(`Hotel Name: ${hotelName}`);
+        // Scroll to bottom slowly to reveal 'Lihat semua'
+        for (let i = 0; i < 10; i++) {
+            await page.evaluate(() => window.scrollBy(0, window.innerHeight));
+            await page.waitForTimeout(500);
+        }
 
-console.log("Scrolling to reveal 'Lihat semua' button...");
-await page.evaluate(async () => {
-    for (let i = 0; i < 25; i++) {
-        window.scrollBy(0, window.innerHeight / 2);
-        await new Promise(res => setTimeout(res, 500)); 
-    }
-});
-await new Promise(res => setTimeout(res, 5000)); 
-
-    let clicked = false;
-    try {
-        await page.waitForSelector('span[data-testid="see-all"]', { timeout: 5000 });
-        const allSeeAllButtons = await page.$$('span[data-testid="see-all"]');
-
-        for (const btn of allSeeAllButtons) {
-            const [text, className] = await Promise.all([
-                page.evaluate(el => el.textContent.trim(), btn),
-                page.evaluate(el => el.className, btn)
-            ]);
-
-            if (text === "Lihat semua" && className.includes("ReviewWidget-module__button_see_all")) {
-                const outerHTML = await page.evaluate(el => el.outerHTML, btn);
-                console.log("✅ Will click this 'Lihat semua' button:\n", outerHTML);
-                await btn.evaluate(el => el.scrollIntoView({ behavior: 'smooth', block: 'center' }));
-                await new Promise(resolve => setTimeout(resolve, 1000));
+        // Click the correct 'Lihat semua'
+        const seeAllButtons = await page.$$('span[data-testid="see-all"]');
+        let clicked = false;
+        for (const btn of seeAllButtons) {
+            const text = await page.evaluate(el => el.textContent.trim(), btn);
+            if (text === "Lihat semua") {
+                console.log("✅ Clicking 'Lihat semua'");
                 await btn.click();
-                await new Promise(resolve => setTimeout(resolve, 2000));
                 clicked = true;
-                console.log("✅ Clicked 'Lihat semua' button");
                 break;
             }
         }
-    } catch (e) {
-        console.log("❌ 'Lihat semua' button not found");
-    }
 
-    console.log("Looking for 'Sort' dropdown...");
-    try {
-        await page.waitForFunction(() => {
-            return Array.from(document.querySelectorAll('button')).some(btn => btn.textContent.trim() === 'Sort');
-        }, { timeout: 15000 });
+        if (!clicked) {
+            console.log("❌ 'Lihat semua' button not found.");
+            await browser.close();
+            return;
+        }
 
-        const sortButton = await page.evaluateHandle(() => {
-            return Array.from(document.querySelectorAll('button')).find(btn => btn.textContent.trim() === 'Sort');
-        });
+        // Wait for reviews to appear
+        await page.waitForSelector('[data-testid="review-card"]', { timeout: 20000 });
 
-        await sortButton.evaluate(el => el.scrollIntoView({ behavior: "smooth", block: "center" }));
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        await sortButton.click();
-        console.log("✅ Clicked 'Sort' dropdown");
-
-        await page.waitForFunction(() => {
-            return Array.from(document.querySelectorAll('span')).some(el => el.textContent.trim() === 'Latest Review');
-        }, { timeout: 10000 });
-
-        const latestReviewSpan = await page.evaluateHandle(() => {
-            return Array.from(document.querySelectorAll('span')).find(el => el.textContent.trim() === 'Latest Review');
-        });
-
-        await latestReviewSpan.evaluate(el => el.scrollIntoView({ behavior: "smooth", block: "center" }));
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        await latestReviewSpan.click();
-        console.log("✅ Clicked 'Latest Review' option");
-    } catch (error) {
-        console.log("❌ Error during 'Sort' selection:", error.message);
-    }
+        // Sort by 'Latest Review'
+        const sortBtn = await page.$x("//button[contains(., 'Sort')]");
+        if (sortBtn.length > 0) {
+            await sortBtn[0].click();
+            await page.waitForTimeout(1000);
+            const latest = await page.$x("//span[contains(., 'Latest Review')]");
+            if (latest.length > 0) {
+                await latest[0].click();
+                console.log("✅ Sorted by latest review");
+            }
+        } else {
+            console.log("⚠️ Sort button not found, continuing anyway...");
+        }
 
     let allReviews = [];
     let pageCounter = 1;
