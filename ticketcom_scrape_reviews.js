@@ -20,23 +20,27 @@ async function scrapeReviews() {
         args: [
             "--start-maximized",
             "--no-sandbox",
-            "--disable-setuid-sandbox"
+            "--disable-setuid-sandbox",
         ]
     });
 
     const page = await browser.newPage();
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36');
+    await page.setUserAgent(
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
+    );
 
     try {
         console.log(`🌐 Navigating to: ${hotelUrl}`);
         await page.goto(hotelUrl, { waitUntil: 'domcontentloaded' });
         await page.waitForTimeout(2000);
+        console.log("✅ Page loaded");
 
-        // Close promo popup if present
+        // Close promo popup
         try {
+            console.log("👉 Checking for promo popup...");
             await page.evaluate(() => {
-                const promoBtn = document.querySelector('button[data-role="secondaryCtaClose"]');
-                if (promoBtn) promoBtn.click();
+                const btn = document.querySelector('button[data-role="secondaryCtaClose"]');
+                if (btn) btn.click();
             });
             console.log("✅ Promo popup closed");
             await page.waitForTimeout(1000);
@@ -44,10 +48,12 @@ async function scrapeReviews() {
             console.log("ℹ️ No promo popup found");
         }
 
-        // Click "Lihat semua"
+        // Click 'Lihat semua'
         try {
+            console.log("👉 Looking for 'Lihat semua' button...");
             await page.evaluate(() => {
-                const btn = document.querySelector('span.rr___ReviewWidget-module__button_see_all____NWyR');
+                const spans = Array.from(document.querySelectorAll('span'));
+                const btn = spans.find(el => el.textContent.toLowerCase().includes('lihat semua'));
                 if (btn) {
                     btn.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     btn.click();
@@ -59,19 +65,21 @@ async function scrapeReviews() {
             console.error("❌ Failed to click 'Lihat semua':", err.message);
         }
 
-        // Click "Sort" and then "Latest Review"
+        // Click 'Sort' → 'Latest Review'
         try {
+            console.log("👉 Clicking sort...");
             await page.evaluate(() => {
-                const sortBtn = Array.from(document.querySelectorAll("button span"))
+                const btn = Array.from(document.querySelectorAll("button span"))
                     .find(el => el.innerText.trim() === "Sort");
-                if (sortBtn) sortBtn.click();
+                if (btn) btn.click();
             });
             await page.waitForTimeout(1000);
 
+            console.log("👉 Selecting 'Latest Review'...");
             await page.evaluate(() => {
-                const latestBtn = Array.from(document.querySelectorAll("span"))
+                const latest = Array.from(document.querySelectorAll("span"))
                     .find(el => el.innerText.trim() === "Latest Review");
-                if (latestBtn) latestBtn.click();
+                if (latest) latest.click();
             });
             console.log("✅ Sorted by latest reviews");
             await page.waitForTimeout(2000);
@@ -83,6 +91,8 @@ async function scrapeReviews() {
         let pageCounter = 1;
         let lastComment = '';
         let retryCount = 0;
+
+        console.log("📥 Starting to scrape reviews...");
 
         while (true) {
             console.log(`📄 Scraping page ${pageCounter}...`);
@@ -122,6 +132,8 @@ async function scrapeReviews() {
                 }).filter(r => r.comment && r.rating !== null && r.rating > 0);
             });
 
+            console.log(`📌 Extracted ${reviews.length} reviews`);
+
             if (reviews.length === 0 || (reviews[0].comment === lastComment && retryCount++ >= 2)) {
                 console.log("⚠️ No new reviews or repeated content, stopping.");
                 break;
@@ -154,9 +166,9 @@ async function scrapeReviews() {
             }
 
             await page.evaluate(() => {
-                document.querySelector('[data-testid="chevron-right-pagination"]').click();
+                const next = document.querySelector('[data-testid="chevron-right-pagination"]');
+                if (next) next.click();
             });
-
             await page.waitForTimeout(3000);
             pageCounter++;
         }
@@ -167,8 +179,8 @@ async function scrapeReviews() {
     } catch (err) {
         console.error("❌ Scraper failed:", err.message);
     } finally {
-        await browser.close();
         console.log("🔒 Browser closed");
+        await browser.close();
     }
 }
 
