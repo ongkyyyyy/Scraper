@@ -6,8 +6,8 @@ const { BACKEND_URL } = require('./config');
 puppeteer.use(StealthPlugin());
 
 async function scrapeReviews() {
-    const hotelUrl = process.argv[2];
-    const hotelId = process.argv[3];  
+const hotelUrl = process.argv[2];
+    const hotelId = process.argv[3];
 
     if (!hotelUrl || !hotelId) {
         console.error("❌ Usage: node script.js <hotelUrl> <hotelId>");
@@ -15,18 +15,17 @@ async function scrapeReviews() {
     }
 
     console.log("Launching Puppeteer with Stealth Plugin...");
-    const browser = await puppeteer.launch({ 
-        headless: "new",  
-        defaultViewport: null, 
+    const browser = await puppeteer.launch({
+        headless: 'new',
+        defaultViewport: null,
         args: [
-            "--start-maximized",
-            "--no-sandbox",
-            "--disable-setuid-sandbox",
-            "--disable-infobars",
-            "--disable-extensions",
-            "--disable-gpu",
-            "--window-size=1920,1080"
-        ] 
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-infobars',
+            '--disable-extensions',
+            '--disable-gpu',
+            '--window-size=1920,1080'
+        ]
     });
 
     const page = await browser.newPage();
@@ -44,58 +43,59 @@ async function scrapeReviews() {
         const hotelNameElem = document.querySelector('h1[data-testid="name"]');
         return hotelNameElem ? hotelNameElem.innerText.trim() : 'Unknown Hotel';
     });
-    
     console.log(`Hotel Name: ${hotelName}`);
 
-console.log("Waiting for 'Lihat semua' button to appear...");
-await page.waitForSelector('span[data-testid="see-all"]', { timeout: 15000 });
-
-const allSeeAllButtons = await page.$$('span[data-testid="see-all"]');
-let clicked = false;
-
-for (const btn of allSeeAllButtons) {
-    const [text, className] = await Promise.all([
-        page.evaluate(el => el.textContent.trim(), btn),
-        page.evaluate(el => el.className, btn),
-    ]);
-
-    if (text === "Lihat semua" && className.includes("ReviewWidget-module__button_see_all")) {
-        const outerHTML = await page.evaluate(el => el.outerHTML, btn);
-        console.log("✅ Will click this 'Lihat semua' button:\n", outerHTML);
-
-        await btn.evaluate(el => el.scrollIntoView({ behavior: 'smooth', block: 'center' }));
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        await btn.click();
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        clicked = true;
-        console.log("✅ Clicked 'Lihat semua' button");
-        break;
-    }
-}
-
-if (!clicked) {
-    console.log("❌ Correct 'Lihat semua' button not found.");
-}
-
-console.log("Looking for 'Sort' dropdown...");
-
-try {
-    // Wait for any button with "Sort" in it (less brittle than specific testid structure)
-    await page.waitForFunction(() => {
-        return Array.from(document.querySelectorAll('button')).some(btn => btn.textContent.trim() === 'Sort');
-    }, { timeout: 15000 });
-
-    const sortButton = await page.evaluateHandle(() => {
-        return Array.from(document.querySelectorAll('button')).find(btn => btn.textContent.trim() === 'Sort');
+    console.log("Scrolling to reveal 'Lihat semua' button...");
+    await page.evaluate(async () => {
+        for (let i = 0; i < 15; i++) {
+            window.scrollBy(0, window.innerHeight);
+            await new Promise(res => setTimeout(res, 300));
+        }
     });
+    await new Promise(res => setTimeout(res, 2000));
 
-    if (sortButton) {
+    let clicked = false;
+    try {
+        await page.waitForSelector('span[data-testid="see-all"]', { timeout: 15000 });
+        const allSeeAllButtons = await page.$$('span[data-testid="see-all"]');
+
+        for (const btn of allSeeAllButtons) {
+            const [text, className] = await Promise.all([
+                page.evaluate(el => el.textContent.trim(), btn),
+                page.evaluate(el => el.className, btn)
+            ]);
+
+            if (text === "Lihat semua" && className.includes("ReviewWidget-module__button_see_all")) {
+                const outerHTML = await page.evaluate(el => el.outerHTML, btn);
+                console.log("✅ Will click this 'Lihat semua' button:\n", outerHTML);
+                await btn.evaluate(el => el.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                await btn.click();
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                clicked = true;
+                console.log("✅ Clicked 'Lihat semua' button");
+                break;
+            }
+        }
+    } catch (e) {
+        console.log("❌ 'Lihat semua' button not found");
+    }
+
+    console.log("Looking for 'Sort' dropdown...");
+    try {
+        await page.waitForFunction(() => {
+            return Array.from(document.querySelectorAll('button')).some(btn => btn.textContent.trim() === 'Sort');
+        }, { timeout: 15000 });
+
+        const sortButton = await page.evaluateHandle(() => {
+            return Array.from(document.querySelectorAll('button')).find(btn => btn.textContent.trim() === 'Sort');
+        });
+
         await sortButton.evaluate(el => el.scrollIntoView({ behavior: "smooth", block: "center" }));
         await new Promise(resolve => setTimeout(resolve, 1000));
         await sortButton.click();
         console.log("✅ Clicked 'Sort' dropdown");
 
-        // Wait for the "Latest Review" radio span
         await page.waitForFunction(() => {
             return Array.from(document.querySelectorAll('span')).some(el => el.textContent.trim() === 'Latest Review');
         }, { timeout: 10000 });
@@ -104,21 +104,13 @@ try {
             return Array.from(document.querySelectorAll('span')).find(el => el.textContent.trim() === 'Latest Review');
         });
 
-        if (latestReviewSpan) {
-            await latestReviewSpan.evaluate(el => el.scrollIntoView({ behavior: "smooth", block: "center" }));
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            await latestReviewSpan.click();
-            console.log("✅ Clicked 'Latest Review' option");
-        } else {
-            console.log("❌ 'Latest Review' option not found");
-        }
-    } else {
-        console.log("❌ 'Sort' button not found");
+        await latestReviewSpan.evaluate(el => el.scrollIntoView({ behavior: "smooth", block: "center" }));
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await latestReviewSpan.click();
+        console.log("✅ Clicked 'Latest Review' option");
+    } catch (error) {
+        console.log("❌ Error during 'Sort' selection:", error.message);
     }
-} catch (error) {
-    console.log("❌ Error during 'Sort' selection:", error.message);
-}
-
 
     let allReviews = [];
     let pageCounter = 1;
