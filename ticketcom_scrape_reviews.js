@@ -15,7 +15,7 @@ async function scrapeReviews() {
     }
 
     const browser = await puppeteer.launch({
-        headless: "new",
+        headless: "new", // change to false if testing locally
         defaultViewport: null,
         args: ["--start-maximized", "--no-sandbox", "--disable-setuid-sandbox"]
     });
@@ -35,7 +35,7 @@ async function scrapeReviews() {
         await page.goto(hotelUrl, { waitUntil: 'domcontentloaded' });
         await page.waitForTimeout(1500);
 
-        // Close popup if it appears
+        // Try closing modal if any
         try {
             await page.waitForSelector('[class*="close"], [data-testid*="close"], button[aria-label="Close"]', { timeout: 5000 });
             await page.evaluate(() => {
@@ -51,9 +51,10 @@ async function scrapeReviews() {
             const el = document.querySelector('h1[data-testid="name"]');
             return el ? el.innerText.trim() : 'Unknown Hotel';
         });
+        console.log(`🏨 Hotel Name: ${hotelName}`);
 
-        // Click "Lihat semua" using specific class
-        await page.evaluate(() => {
+        // Click "Lihat semua"
+        const seeAllClicked = await page.evaluate(() => {
             const buttons = Array.from(document.querySelectorAll('span[data-testid="see-all"]'));
             const target = buttons.find(el =>
                 el.innerText.trim() === "Lihat semua" &&
@@ -62,31 +63,57 @@ async function scrapeReviews() {
             if (target) {
                 target.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 target.click();
+                return true;
             }
+            return false;
         });
-        await page.waitForTimeout(2000);
+
+        if (seeAllClicked) {
+            console.log("✅ 'Lihat semua' button clicked.");
+            await page.waitForTimeout(3000);
+        } else {
+            console.log("❌ 'Lihat semua' button not found.");
+            await browser.close();
+            return;
+        }
 
         // Click "Sort"
-        await page.evaluate(() => {
-            const sortBtn = Array.from(document.querySelectorAll("button span"))
+        const sortClicked = await page.evaluate(() => {
+            const sortEl = Array.from(document.querySelectorAll("button span"))
                 .find(el => el.innerText.trim() === "Sort");
-            if (sortBtn) {
-                sortBtn.scrollIntoView({ behavior: 'smooth' });
-                sortBtn.click();
+            if (sortEl) {
+                sortEl.scrollIntoView({ behavior: "smooth", block: "center" });
+                sortEl.click();
+                return true;
             }
+            return false;
         });
-        await page.waitForTimeout(1000);
+
+        if (sortClicked) {
+            console.log("✅ 'Sort' button clicked.");
+            await page.waitForTimeout(1500);
+        } else {
+            console.log("❌ 'Sort' button not found.");
+        }
 
         // Click "Latest Review"
-        await page.evaluate(() => {
-            const latestBtn = Array.from(document.querySelectorAll("span"))
+        const latestClicked = await page.evaluate(() => {
+            const latest = Array.from(document.querySelectorAll("span"))
                 .find(el => el.innerText.trim() === "Latest Review");
-            if (latestBtn) {
-                latestBtn.scrollIntoView({ behavior: 'smooth' });
-                latestBtn.click();
+            if (latest) {
+                latest.scrollIntoView({ behavior: "smooth", block: "center" });
+                latest.click();
+                return true;
             }
+            return false;
         });
-        await page.waitForTimeout(2000);
+
+        if (latestClicked) {
+            console.log("✅ 'Latest Review' option clicked.");
+            await page.waitForTimeout(2000);
+        } else {
+            console.log("❌ 'Latest Review' option not found.");
+        }
 
         let allReviews = [];
         let pageCounter = 1;
@@ -175,6 +202,7 @@ async function scrapeReviews() {
         console.error("❌ Scraper failed:", err.message);
     } finally {
         await browser.close();
+        console.log("✅ Scraper completed.");
     }
 }
 
@@ -185,7 +213,7 @@ async function sendReviews(reviews, hotelId) {
     }
 
     try {
-        await axios.post(`${BACKEND_URL}/reviews`, {
+        const response = await axios.post(`${BACKEND_URL}/reviews`, {
             reviews,
             hotel_id: hotelId,
             ota: "tiket.com"
