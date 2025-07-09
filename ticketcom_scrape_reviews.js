@@ -20,23 +20,23 @@ async function scrapeReviews() {
         args: [
             "--start-maximized",
             "--no-sandbox",
-            "--disable-setuid-sandbox",
+            "--disable-setuid-sandbox"
         ]
     });
 
     const page = await browser.newPage();
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64)...');
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36');
 
     try {
         console.log(`🌐 Navigating to: ${hotelUrl}`);
         await page.goto(hotelUrl, { waitUntil: 'domcontentloaded' });
         await page.waitForTimeout(2000);
 
-        // Close promo popup if exists
+        // Close promo popup if present
         try {
             await page.evaluate(() => {
-                const btn = document.querySelector('button[data-role="secondaryCtaClose"]');
-                if (btn) btn.click();
+                const promoBtn = document.querySelector('button[data-role="secondaryCtaClose"]');
+                if (promoBtn) promoBtn.click();
             });
             console.log("✅ Promo popup closed");
             await page.waitForTimeout(1000);
@@ -44,7 +44,7 @@ async function scrapeReviews() {
             console.log("ℹ️ No promo popup found");
         }
 
-        // Click 'Lihat semua'
+        // Click "Lihat semua"
         try {
             await page.evaluate(() => {
                 const btn = document.querySelector('span.rr___ReviewWidget-module__button_see_all____NWyR');
@@ -59,7 +59,7 @@ async function scrapeReviews() {
             console.error("❌ Failed to click 'Lihat semua':", err.message);
         }
 
-        // Click 'Sort' and 'Latest Review'
+        // Click "Sort" and then "Latest Review"
         try {
             await page.evaluate(() => {
                 const sortBtn = Array.from(document.querySelectorAll("button span"))
@@ -156,6 +156,7 @@ async function scrapeReviews() {
             await page.evaluate(() => {
                 document.querySelector('[data-testid="chevron-right-pagination"]').click();
             });
+
             await page.waitForTimeout(3000);
             pageCounter++;
         }
@@ -167,6 +168,7 @@ async function scrapeReviews() {
         console.error("❌ Scraper failed:", err.message);
     } finally {
         await browser.close();
+        console.log("🔒 Browser closed");
     }
 }
 
@@ -176,7 +178,7 @@ async function sendReviews(reviews, hotelId) {
             await axios.post(`${BACKEND_URL}/reviews`, {
                 reviews,
                 hotel_id: hotelId,
-                ota: "ticket.com"
+                ota: "tiket.com"
             });
             console.log('✅ Data sent to backend successfully');
             console.log('Total Reviews Sent:', reviews.length);
