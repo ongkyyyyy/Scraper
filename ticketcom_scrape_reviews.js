@@ -171,20 +171,21 @@ async function scrapeReviews() {
 }
 
 async function sendReviews(reviews, hotelId) {
-    if (!reviews.length) {
-        console.log("ℹ️ No reviews to send.");
-        return;
-    }
-
     try {
-        const response = await axios.post(`${BACKEND_URL}/reviews`, {
-            reviews,
-            hotel_id: hotelId,
-            ota: "tiket.com"
-        });
-        console.log("✅ Sent", reviews.length, "reviews to backend.");
-    } catch (err) {
-        console.error("❌ Failed to send reviews:", err.message);
+        if (reviews.length > 0) {
+            await axios.post(`${BACKEND_URL}/reviews`, {
+                reviews,
+                hotel_id: hotelId,
+                ota: "ticket.com"
+            });
+            console.log('✅ Data sent to backend successfully');
+            console.log('Total Reviews Sent:', reviews.length);
+            console.log('Hotel ID:', hotelId);
+        } else {
+            console.log('ℹ️ No valid reviews found.');
+        }
+    } catch (error) {
+        console.error('❌ Error sending data:', error.message);
     }
 }
 
