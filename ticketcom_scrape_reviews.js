@@ -46,54 +46,48 @@ async function scrapeReviews() {
     
     console.log(`Hotel Name: ${hotelName}`);
 
-    console.log("Searching for 'Lihat Semua' button...");
-    console.log("Looking for the correct 'Lihat semua' button...");
-
-// Get all buttons with data-testid=see-all
+console.log("Searching for 'Lihat Semua' button...");
 const allSeeAllButtons = await page.$$('span[data-testid="see-all"]');
 
 let clicked = false;
 
 for (const btn of allSeeAllButtons) {
-    const text = await page.evaluate(el => el.textContent.trim(), btn);
-    const className = await page.evaluate(el => el.className, btn);
+    const [text, className] = await Promise.all([
+        page.evaluate(el => el.textContent.trim(), btn),
+        page.evaluate(el => el.className, btn),
+    ]);
 
     if (text === "Lihat semua" && className.includes("ReviewWidget-module__button_see_all")) {
         console.log("✅ Found correct 'Lihat semua' button");
-
         await btn.evaluate(el => el.scrollIntoView({ behavior: 'smooth', block: 'center' }));
-        await new Promise(resolve => setTimeout(resolve, 1000)); 
+        await new Promise(resolve => setTimeout(resolve, 1000));
         await btn.click();
+        await new Promise(resolve => setTimeout(resolve, 2000)); // give time for the modal to appear
         clicked = true;
+        console.log("✅ Clicked 'Lihat semua' button");
         break;
     }
 }
 
 if (!clicked) {
     console.log("❌ Correct 'Lihat semua' button not found.");
-} else {
-    await new Promise(resolve => setTimeout(resolve, 2000)); // wait for review modal or section to load
 }
 
-    console.log("Looking for 'Sort' button...");
+
+// === SORT ===
+console.log("Looking for 'Sort' button...");
 const sortSpans = await page.$$('button span');
 let clickedSort = false;
 
 for (const span of sortSpans) {
-    try {
-        const text = await page.evaluate(el => el.textContent.trim(), span);
-        if (text === "Sort") {
-            await page.evaluate(el => {
-                if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-            }, span);
-            await new Promise(resolve => setTimeout(resolve, 1000)); 
-            await span.click();
-            clickedSort = true;
-            console.log("✅ Clicked 'Sort' button");
-            break;
-        }
-    } catch (error) {
-        console.log("⚠️ Error processing 'Sort' span:", error.message);
+    const text = await page.evaluate(el => el.textContent.trim(), span);
+    if (text === "Sort") {
+        await span.evaluate(el => el.scrollIntoView({ behavior: "smooth", block: "center" }));
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await span.click();
+        clickedSort = true;
+        console.log("✅ Clicked 'Sort' button");
+        break;
     }
 }
 
@@ -101,27 +95,20 @@ if (!clickedSort) {
     console.log("❌ 'Sort' button not found");
 }
 
-// ============================
-
+// === LATEST REVIEW ===
 console.log("Looking for 'Latest Review' option...");
 const spanTags = await page.$$('span');
 let clickedLatest = false;
 
 for (const span of spanTags) {
-    try {
-        const text = await page.evaluate(el => el.textContent.trim(), span);
-        if (text === "Latest Review") {
-            await page.evaluate(el => {
-                if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-            }, span);
-            await new Promise(resolve => setTimeout(resolve, 1000)); 
-            await span.click();
-            clickedLatest = true;
-            console.log("✅ Clicked 'Latest Review' option");
-            break;
-        }
-    } catch (error) {
-        console.log("⚠️ Error processing 'Latest Review' span:", error.message);
+    const text = await page.evaluate(el => el.textContent.trim(), span);
+    if (text === "Latest Review") {
+        await span.evaluate(el => el.scrollIntoView({ behavior: "smooth", block: "center" }));
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await span.click();
+        clickedLatest = true;
+        console.log("✅ Clicked 'Latest Review' option");
+        break;
     }
 }
 
