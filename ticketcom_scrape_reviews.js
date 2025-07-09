@@ -49,14 +49,14 @@ console.log("Scrolling to reveal 'Lihat semua' button...");
 await page.evaluate(async () => {
     for (let i = 0; i < 25; i++) {
         window.scrollBy(0, window.innerHeight / 2);
-        await new Promise(res => setTimeout(res, 400)); 
+        await new Promise(res => setTimeout(res, 500)); 
     }
 });
 await new Promise(res => setTimeout(res, 5000)); 
 
     let clicked = false;
     try {
-        await page.waitForSelector('span[data-testid="see-all"]', { timeout: 15000 });
+        await page.waitForSelector('span[data-testid="see-all"]', { timeout: 5000 });
         const allSeeAllButtons = await page.$$('span[data-testid="see-all"]');
 
         for (const btn of allSeeAllButtons) {
