@@ -45,14 +45,14 @@ const hotelUrl = process.argv[2];
     });
     console.log(`Hotel Name: ${hotelName}`);
 
-    console.log("Scrolling to reveal 'Lihat semua' button...");
-    await page.evaluate(async () => {
-        for (let i = 0; i < 15; i++) {
-            window.scrollBy(0, window.innerHeight);
-            await new Promise(res => setTimeout(res, 300));
-        }
-    });
-    await new Promise(res => setTimeout(res, 2000));
+console.log("Scrolling to reveal 'Lihat semua' button...");
+await page.evaluate(async () => {
+    for (let i = 0; i < 25; i++) {
+        window.scrollBy(0, window.innerHeight / 2);
+        await new Promise(res => setTimeout(res, 400)); 
+    }
+});
+await new Promise(res => setTimeout(res, 5000)); 
 
     let clicked = false;
     try {
