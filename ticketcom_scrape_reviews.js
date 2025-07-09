@@ -5,7 +5,8 @@ const { BACKEND_URL } = require('./config');
 
 puppeteer.use(StealthPlugin());
 
-async function scrapeReviews() {
+async function scrapeReviews(retryAttempt = 0) {
+    const MAX_RETRIES = 3;
     const hotelUrl = process.argv[2];
     const hotelId = process.argv[3];
 
@@ -14,106 +15,73 @@ async function scrapeReviews() {
         process.exit(1);
     }
 
+    console.log(`Launching Puppeteer (Attempt ${retryAttempt + 1})...`);
     const browser = await puppeteer.launch({
-        headless: "new", // change to false if testing locally
+        headless: "new",
         defaultViewport: null,
-        args: ["--start-maximized", "--no-sandbox", "--disable-setuid-sandbox"]
-    });
-
-    const page = await browser.newPage();
-    await page.setUserAgent(
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
-    );
-
-    page.on('dialog', async dialog => {
-        console.log(`🟡 Dismissing popup: ${dialog.message()}`);
-        await dialog.dismiss();
+        args: ["--no-sandbox", "--disable-setuid-sandbox", "--start-maximized"]
     });
 
     try {
-        console.log(`🌐 Navigating to hotel URL: ${hotelUrl}`);
-        await page.goto(hotelUrl, { waitUntil: 'domcontentloaded' });
-        await page.waitForTimeout(1500);
+        const page = await browser.newPage();
+        await page.setUserAgent(
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
+        );
 
-        // Try closing modal if any
+        console.log(`🌐 Navigating to: ${hotelUrl}`);
+        await page.goto(hotelUrl, { waitUntil: 'domcontentloaded' });
+
+        // Close promo popup if exists
         try {
-            await page.waitForSelector('[class*="close"], [data-testid*="close"], button[aria-label="Close"]', { timeout: 5000 });
-            await page.evaluate(() => {
-                const closeBtn = document.querySelector('[class*="close"], [data-testid*="close"], button[aria-label="Close"]');
-                if (closeBtn) closeBtn.click();
-            });
-            console.log("✅ Closed popup/modal");
+            await page.waitForSelector('button[data-role="secondaryCtaClose"]', { timeout: 5000 });
+            await page.click('button[data-role="secondaryCtaClose"]');
+            console.log("✅ Closed promo popup");
         } catch {
-            console.log("ℹ️ No popup detected");
+            console.log("ℹ️ No promo popup found");
+        }
+
+        // Click "Lihat semua" (Reviews)
+        try {
+            await page.waitForSelector('span.rr___ReviewWidget-module__button_see_all____NWyR', { timeout: 5000 });
+            await page.evaluate(() => {
+                document.querySelector('span.rr___ReviewWidget-module__button_see_all____NWyR').click();
+            });
+            await page.waitForTimeout(2000);
+            console.log("✅ Clicked 'Lihat semua'");
+        } catch {
+            console.log("❌ Failed to click 'Lihat semua'");
+            await browser.close();
+            return;
+        }
+
+        // Click "Sort" then "Latest Review"
+        try {
+            await page.waitForSelector("button span", { timeout: 5000 });
+            const sortBtnHandle = await page.evaluateHandle(() => {
+                return Array.from(document.querySelectorAll("button span"))
+                    .find(el => el.innerText.trim() === "Sort");
+            });
+            if (sortBtnHandle) {
+                await page.evaluate(el => el.click(), sortBtnHandle);
+                await page.waitForTimeout(1000);
+            }
+
+            const latestReviewHandle = await page.evaluateHandle(() => {
+                return Array.from(document.querySelectorAll("span"))
+                    .find(el => el.innerText.trim() === "Latest Review");
+            });
+            if (latestReviewHandle) {
+                await page.evaluate(el => el.click(), latestReviewHandle);
+                await page.waitForTimeout(2000);
+            }
+        } catch {
+            console.log("❌ Failed to sort by latest review");
         }
 
         const hotelName = await page.evaluate(() => {
             const el = document.querySelector('h1[data-testid="name"]');
             return el ? el.innerText.trim() : 'Unknown Hotel';
         });
-        console.log(`🏨 Hotel Name: ${hotelName}`);
-
-        // Click "Lihat semua"
-        const seeAllClicked = await page.evaluate(() => {
-            const buttons = Array.from(document.querySelectorAll('span[data-testid="see-all"]'));
-            const target = buttons.find(el =>
-                el.innerText.trim() === "Lihat semua" &&
-                el.className.includes("rr___ReviewWidget-module__button_see_all____NWyR")
-            );
-            if (target) {
-                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                target.click();
-                return true;
-            }
-            return false;
-        });
-
-        if (seeAllClicked) {
-            console.log("✅ 'Lihat semua' button clicked.");
-            await page.waitForTimeout(3000);
-        } else {
-            console.log("❌ 'Lihat semua' button not found.");
-            await browser.close();
-            return;
-        }
-
-        // Click "Sort"
-        const sortClicked = await page.evaluate(() => {
-            const sortEl = Array.from(document.querySelectorAll("button span"))
-                .find(el => el.innerText.trim() === "Sort");
-            if (sortEl) {
-                sortEl.scrollIntoView({ behavior: "smooth", block: "center" });
-                sortEl.click();
-                return true;
-            }
-            return false;
-        });
-
-        if (sortClicked) {
-            console.log("✅ 'Sort' button clicked.");
-            await page.waitForTimeout(1500);
-        } else {
-            console.log("❌ 'Sort' button not found.");
-        }
-
-        // Click "Latest Review"
-        const latestClicked = await page.evaluate(() => {
-            const latest = Array.from(document.querySelectorAll("span"))
-                .find(el => el.innerText.trim() === "Latest Review");
-            if (latest) {
-                latest.scrollIntoView({ behavior: "smooth", block: "center" });
-                latest.click();
-                return true;
-            }
-            return false;
-        });
-
-        if (latestClicked) {
-            console.log("✅ 'Latest Review' option clicked.");
-            await page.waitForTimeout(2000);
-        } else {
-            console.log("❌ 'Latest Review' option not found.");
-        }
 
         let allReviews = [];
         let pageCounter = 1;
@@ -124,18 +92,14 @@ async function scrapeReviews() {
             console.log(`📄 Scraping page ${pageCounter}...`);
             await page.waitForTimeout(2000);
 
-            const reviews = await page.evaluate(hotelName => {
-                const monthMap = {
-                    Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
-                    Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11
-                };
+            const reviews = await page.evaluate((hotelName) => {
+                const monthMap = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 };
 
                 return Array.from(document.querySelectorAll('[data-testid="review-card"]')).map(card => {
                     const name = card.querySelector('[class*="ReviewCard_customer_name"]');
                     const rating = card.querySelector('.ReviewCard_user_review__HvsOH');
                     const comment = card.querySelector('.ReadMoreComments_review_card_comment__R_W2B');
-                    const dateText = Array.from(card.querySelectorAll('span'))
-                        .find(s => s.innerText.match(/\d{1,2} \w+ \d{4}/));
+                    const dateText = Array.from(card.querySelectorAll('span')).find(s => s.innerText.match(/\d{1,2} \w+ \d{4}/));
 
                     let formattedDate = 'Unknown Date';
                     if (dateText) {
@@ -159,7 +123,7 @@ async function scrapeReviews() {
             }, hotelName);
 
             if (reviews.length === 0 || (reviews[0].comment === lastComment && retryCount++ >= 2)) {
-                console.log("⚠️ No new reviews or repeated content, stopping.");
+                console.log("⚠️ No new reviews or repeated content. Stopping.");
                 break;
             }
 
@@ -169,7 +133,7 @@ async function scrapeReviews() {
             for (const review of reviews) {
                 const year = parseInt(review.timestamp.split("-")[2], 10);
                 if (year < 2024) {
-                    console.log("🛑 Found old review before 2024, stopping.");
+                    console.log("🛑 Encountered review before 2024. Stopping.");
                     await sendReviews(allReviews, hotelId);
                     await browser.close();
                     return;
@@ -177,17 +141,17 @@ async function scrapeReviews() {
                 allReviews.push(review);
             }
 
-            console.log(`✅ Collected ${reviews.length} reviews from page ${pageCounter}.`);
+            console.log(`✅ Collected ${reviews.length} reviews from page ${pageCounter}`);
 
             const nextBtn = await page.$('div[data-testid="chevron-right-pagination"]');
             if (!nextBtn) {
-                console.log("🚫 No more pagination button found.");
+                console.log("🚫 No more pages.");
                 break;
             }
 
             const isDisabled = await page.evaluate(btn => btn.getAttribute('aria-disabled') === 'true', nextBtn);
             if (isDisabled) {
-                console.log("⛔ 'Next' button is disabled. Ending pagination.");
+                console.log("⛔ Next button is disabled.");
                 break;
             }
 
@@ -200,10 +164,16 @@ async function scrapeReviews() {
         await sendReviews(allReviews, hotelId);
     } catch (err) {
         console.error("❌ Scraper failed:", err.message);
-    } finally {
         await browser.close();
-        console.log("✅ Scraper completed.");
+        if (retryAttempt + 1 < MAX_RETRIES) {
+            console.log("🔁 Retrying...");
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            return scrapeReviews(retryAttempt + 1);
+        } else {
+            console.error("❌ Max retries reached. Giving up.");
+        }
     }
+    await browser.close();
 }
 
 async function sendReviews(reviews, hotelId) {
