@@ -53,7 +53,7 @@ async function scrapeReviews() {
         console.log("Scrolling to and clicking 'Lihat Semua'...");
 
         await seeAllButton.evaluate(el => el.scrollIntoView({ behavior: "smooth", block: "center" }));
-        await page.waitForTimeout(1000);
+        await new Promise(resolve => setTimeout(resolve, 1000)); 
 
         const text = await page.evaluate(el => el.textContent.trim(), seeAllButton);
         if (text === "Lihat semua") {
@@ -71,8 +71,7 @@ async function scrapeReviews() {
     console.log("Searching for 'Sort' text...");
 
     await page.waitForFunction(() => {
-        return [...document.querySelectorAll("button span")]
-            .some(span => span.textContent.trim() === "Sort");
+        return [...document.querySelectorAll("button span")].some(span => span.textContent.trim() === "Sort");
     }, { timeout: 10000 }).catch(() => console.log("❌ 'Sort' text not found."));
 
     const sortText = await page.evaluateHandle(() => {
