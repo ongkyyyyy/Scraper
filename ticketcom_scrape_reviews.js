@@ -20,11 +20,12 @@ async function scrapeReviews() {
         defaultViewport: null, 
         args: [
             "--start-maximized",
-            "--disable-notifications", 
-            "--disable-infobars", 
-            "--disable-popup-blocking",
             "--no-sandbox",
-            "--disable-setuid-sandbox"
+            "--disable-setuid-sandbox",
+            "--disable-infobars",
+            "--disable-extensions",
+            "--disable-gpu",
+            "--window-size=1920,1080"
         ] 
     });
 
