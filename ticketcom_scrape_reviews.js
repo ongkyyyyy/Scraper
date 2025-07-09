@@ -46,7 +46,12 @@ async function scrapeReviews() {
     
     console.log(`Hotel Name: ${hotelName}`);
 
-// === Lihat Semua ===
+console.log("Scrolling to bottom to trigger lazy-loading...");
+await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+await new Promise(resolve => setTimeout(resolve, 2000)); // wait for lazy-loaded elements
+await page.evaluate(() => window.scrollTo(0, 0)); // scroll back to top
+await new Promise(resolve => setTimeout(resolve, 1000));
+
 console.log("Searching for 'Lihat Semua' button...");
 await new Promise(resolve => setTimeout(resolve, 1000));
 
