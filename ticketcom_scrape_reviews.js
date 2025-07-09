@@ -46,15 +46,11 @@ async function scrapeReviews() {
     
     console.log(`Hotel Name: ${hotelName}`);
 
-console.log("Scrolling to bottom to trigger lazy-loading...");
+console.log("Scrolling to the bottom to trigger lazy-loaded review section...");
 await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-await new Promise(resolve => setTimeout(resolve, 2000)); // wait for lazy-loaded elements
-await page.evaluate(() => window.scrollTo(0, 0)); // scroll back to top
-await new Promise(resolve => setTimeout(resolve, 1000));
+await new Promise(resolve => setTimeout(resolve, 3000)); // wait for lazy-loaded content
 
 console.log("Searching for 'Lihat Semua' button...");
-await new Promise(resolve => setTimeout(resolve, 1000));
-
 const seeAllButtons = await page.$$('span[data-testid="see-all"]');
 let clickedLihatSemua = false;
 
@@ -71,7 +67,7 @@ for (const btn of seeAllButtons) {
             await btn.evaluate(el => el.scrollIntoView({ behavior: 'smooth', block: 'center' }));
             await new Promise(resolve => setTimeout(resolve, 1000));
             await btn.click();
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            await new Promise(resolve => setTimeout(resolve, 3000)); // wait for modal to load
             console.log("✅ Clicked 'Lihat semua' button");
             clickedLihatSemua = true;
         } catch (err) {
