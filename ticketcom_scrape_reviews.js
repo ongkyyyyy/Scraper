@@ -49,28 +49,31 @@ async function scrapeReviews() {
     console.log("Searching for 'Lihat Semua' button...");
     console.log("Looking for the correct 'Lihat semua' button...");
 
-    const clickedSeeAll = await page.evaluate(() => {
-        const buttons = Array.from(document.querySelectorAll('span[data-testid="see-all"]'));
+// Get all buttons with data-testid=see-all
+const allSeeAllButtons = await page.$$('span[data-testid="see-all"]');
 
-        const target = buttons.find(btn => 
-            btn.textContent.trim() === "Lihat semua" &&
-            btn.className.includes("ReviewWidget-module__button_see_all")
-        );
+let clicked = false;
 
-        if (target) {
-            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            target.click();
-            return true;
-        }
-        return false;
-    });
+for (const btn of allSeeAllButtons) {
+    const text = await page.evaluate(el => el.textContent.trim(), btn);
+    const className = await page.evaluate(el => el.className, btn);
 
-    if (clickedSeeAll) {
-        console.log("✅ Clicked the correct 'Lihat semua' button");
-        await page.waitForTimeout(2000);
-    } else {
-        console.log("❌ Could not find the correct 'Lihat semua' button");
+    if (text === "Lihat semua" && className.includes("ReviewWidget-module__button_see_all")) {
+        console.log("✅ Found correct 'Lihat semua' button");
+
+        await btn.evaluate(el => el.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+        await page.waitForTimeout(1000);
+        await btn.click();
+        clicked = true;
+        break;
     }
+}
+
+if (!clicked) {
+    console.log("❌ Correct 'Lihat semua' button not found.");
+} else {
+    await page.waitForTimeout(2000); // wait for review modal or section to load
+}
 
     console.log("Searching for 'Sort' text...");
 
