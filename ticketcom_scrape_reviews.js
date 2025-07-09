@@ -7,7 +7,7 @@ puppeteer.use(StealthPlugin());
 
 async function scrapeReviews() {
     const hotelUrl = process.argv[2];
-    const hotelId = process.argv[3];
+    const hotelId = process.argv[3];  
 
     if (!hotelUrl || !hotelId) {
         console.error("❌ Usage: node script.js <hotelUrl> <hotelId>");
@@ -15,17 +15,17 @@ async function scrapeReviews() {
     }
 
     console.log("Launching Puppeteer with Stealth Plugin...");
-    const browser = await puppeteer.launch({
-        headless: "new",
-        defaultViewport: null,
+    const browser = await puppeteer.launch({ 
+        headless: "new",  
+        defaultViewport: null, 
         args: [
             "--start-maximized",
-            "--disable-notifications",
-            "--disable-infobars",
+            "--disable-notifications", 
+            "--disable-infobars", 
             "--disable-popup-blocking",
             "--no-sandbox",
             "--disable-setuid-sandbox"
-        ]
+        ] 
     });
 
     const page = await browser.newPage();
@@ -43,74 +43,92 @@ async function scrapeReviews() {
         const hotelNameElem = document.querySelector('h1[data-testid="name"]');
         return hotelNameElem ? hotelNameElem.innerText.trim() : 'Unknown Hotel';
     });
-
+    
     console.log(`Hotel Name: ${hotelName}`);
+
+    console.log("Searching for 'Lihat Semua' button...");
     console.log("Looking for the correct 'Lihat semua' button...");
 
-    const allSeeAllButtons = await page.$$('span[data-testid="see-all"]');
-    let clicked = false;
+// Get all buttons with data-testid=see-all
+const allSeeAllButtons = await page.$$('span[data-testid="see-all"]');
 
-    for (const btn of allSeeAllButtons) {
-        const [text, className] = await Promise.all([
-            page.evaluate(el => el.textContent.trim(), btn),
-            page.evaluate(el => el.className, btn)
-        ]);
+let clicked = false;
 
-        if (text === "Lihat semua" && className.includes("ReviewWidget-module__button_see_all")) {
-            console.log("✅ Found correct 'Lihat semua' button");
-            await btn.evaluate(el => el.scrollIntoView({ behavior: 'smooth', block: 'center' }));
-            await page.waitForTimeout(1000);
-            await btn.click();
-            clicked = true;
-            break;
-        }
+for (const btn of allSeeAllButtons) {
+    const text = await page.evaluate(el => el.textContent.trim(), btn);
+    const className = await page.evaluate(el => el.className, btn);
+
+    if (text === "Lihat semua" && className.includes("ReviewWidget-module__button_see_all")) {
+        console.log("✅ Found correct 'Lihat semua' button");
+
+        await btn.evaluate(el => el.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+        await new Promise(resolve => setTimeout(resolve, 1000)); 
+        await btn.click();
+        clicked = true;
+        break;
     }
+}
 
-    if (!clicked) {
-        console.log("❌ Correct 'Lihat semua' button not found.");
-    } else {
-        await page.waitForTimeout(2000);
-    }
+if (!clicked) {
+    console.log("❌ Correct 'Lihat semua' button not found.");
+} else {
+    await new Promise(resolve => setTimeout(resolve, 2000)); // wait for review modal or section to load
+}
 
     console.log("Looking for 'Sort' button...");
-    const sortSpans = await page.$$('button span');
-    let clickedSort = false;
+const sortSpans = await page.$$('button span');
+let clickedSort = false;
 
-    for (const span of sortSpans) {
+for (const span of sortSpans) {
+    try {
         const text = await page.evaluate(el => el.textContent.trim(), span);
         if (text === "Sort") {
-            await span.evaluate(el => el.scrollIntoView({ behavior: "smooth", block: "center" }));
-            await page.waitForTimeout(1000);
+            await page.evaluate(el => {
+                if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+            }, span);
+            await new Promise(resolve => setTimeout(resolve, 1000)); 
             await span.click();
             clickedSort = true;
             console.log("✅ Clicked 'Sort' button");
             break;
         }
+    } catch (error) {
+        console.log("⚠️ Error processing 'Sort' span:", error.message);
     }
+}
 
-    if (!clickedSort) {
-        console.log("❌ 'Sort' button not found");
-    }
+if (!clickedSort) {
+    console.log("❌ 'Sort' button not found");
+}
 
-    console.log("Looking for 'Latest Review' option...");
-    const spanTags = await page.$$('span');
-    let clickedLatest = false;
+// ============================
 
-    for (const span of spanTags) {
+console.log("Looking for 'Latest Review' option...");
+const spanTags = await page.$$('span');
+let clickedLatest = false;
+
+for (const span of spanTags) {
+    try {
         const text = await page.evaluate(el => el.textContent.trim(), span);
         if (text === "Latest Review") {
-            await span.evaluate(el => el.scrollIntoView({ behavior: "smooth", block: "center" }));
-            await page.waitForTimeout(1000);
+            await page.evaluate(el => {
+                if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+            }, span);
+            await new Promise(resolve => setTimeout(resolve, 1000)); 
             await span.click();
             clickedLatest = true;
             console.log("✅ Clicked 'Latest Review' option");
             break;
         }
+    } catch (error) {
+        console.log("⚠️ Error processing 'Latest Review' span:", error.message);
     }
+}
 
-    if (!clickedLatest) {
-        console.log("❌ 'Latest Review' option not found");
-    }
+if (!clickedLatest) {
+    console.log("❌ 'Latest Review' option not found");
+}
+
 
     let allReviews = [];
     let pageCounter = 1;
@@ -119,22 +137,24 @@ async function scrapeReviews() {
 
     while (true) {
         console.log(`Scraping page ${pageCounter}...`);
-        await page.waitForTimeout(3000);
+        await new Promise(resolve => setTimeout(resolve, 3000)); 
 
         let reviews = [];
+
         try {
-            reviews = await page.evaluate(hotelName => {
+            reviews = await page.evaluate((hotelName) => {
                 return Array.from(document.querySelectorAll('[data-testid="review-card"]')).map(review => {
                     const usernameElem = review.querySelector('[class*="ReviewCard_customer_name"]');
                     const ratingElem = review.querySelector('.ReviewCard_user_review__HvsOH');
                     const commentElem = review.querySelector('.ReadMoreComments_review_card_comment__R_W2B');
+            
                     const timestampElem = Array.from(review.querySelectorAll("span"))
                         .find(span => span.innerText.match(/\d{1,2} \w{3,} \d{4}/));
-
+            
                     return {
                         username: usernameElem ? usernameElem.innerText.trim() : 'Anonymous',
                         rating: ratingElem ? parseFloat(ratingElem.innerText.trim().replace(',', '.')) * 2 : null,
-                        comment: commentElem?.innerText.trim() || '-',
+                        comment: commentElem && commentElem.innerText.trim() ? commentElem.innerText.trim() : '-',
                         timestamp: (() => {
                             if (!timestampElem) return 'Unknown Date';
                             const months = {
@@ -145,55 +165,87 @@ async function scrapeReviews() {
                             if (!match) return 'Unknown Date';
                             const [_, day, monthAbbrev, year] = match;
                             const dateObj = new Date(year, months[monthAbbrev], day);
-                            return `${String(dateObj.getDate()).padStart(2, '0')}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${dateObj.getFullYear()}`;
+                            const dd = String(dateObj.getDate()).padStart(2, '0');
+                            const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+                            const yyyy = String(dateObj.getFullYear());
+                            return `${dd}-${mm}-${yyyy}`;
                         })(),
                         hotel_name: hotelName,
                         OTA: 'Ticket.com'
                     };
-                }).filter(r => r.comment && r.rating !== null && r.rating > 0);
-            }, hotelName);
+                }).filter(review => review.comment && review.rating !== null && review.rating > 0);
+            }, hotelName);            
         } catch (err) {
             console.log("❌ Error during review extraction. Retrying...");
-            if (++retryAttempt >= 3) break;
+            retryAttempt++;
+            if (retryAttempt >= 3) {
+                console.log("❌ Maximum retry attempts reached. Stopping.");
+                break;
+            }
             continue;
         }
 
         if (reviews.length > 0 && reviews[0].comment === lastReviewText) {
-            console.log("⚠️ Repeated review page. Retrying...");
-            if (++retryAttempt >= 3) break;
+            console.log("⚠️ Detected repeated review page. Retrying...");
+            retryAttempt++;
+            if (retryAttempt >= 3) {
+                console.log("❌ Maximum retry attempts due to repetition reached. Stopping.");
+                break;
+            }
             continue;
+        } else {
+            retryAttempt = 0;
+            lastReviewText = reviews.length > 0 ? reviews[0].comment : lastReviewText;
         }
 
-        retryAttempt = 0;
-        lastReviewText = reviews.length > 0 ? reviews[0].comment : lastReviewText;
-
         let foundOldReview = false;
+
         for (const review of reviews) {
             const year = parseInt(review.timestamp.split("-")[2], 10);
             if (!year || year < 2024) {
+                console.log("Encountered review before 2024. Stopping.");
                 foundOldReview = true;
                 break;
             }
             allReviews.push(review);
         }
 
-        console.log(`Collected ${reviews.length} reviews from page ${pageCounter}`);
+        console.log(`Collected ${reviews.length} reviews from page ${pageCounter}.`);
 
-        if (foundOldReview) break;
+        if (foundOldReview) {
+            console.log("Total Reviews Scraped:", allReviews.length);
+            await sendReviews(allReviews, hotelId);
+            console.log("Closing browser...");
+            await browser.close();
+            return;
+        }
 
         const nextPageButton = await page.$('div[data-testid="chevron-right-pagination"]');
-        if (!nextPageButton) break;
 
-        const isDisabled = await page.evaluate(button => button.getAttribute('aria-disabled') === "true", nextPageButton);
-        if (isDisabled) break;
+        if (!nextPageButton) {
+            console.log("❌ No 'Next Page' button found. Ending scraping.");
+            break;
+        }
 
+        const isDisabled = await page.evaluate(button => {
+            return button.getAttribute('aria-disabled') === "true";
+        }, nextPageButton);
+
+        if (isDisabled) {
+            console.log("❌ 'Next Page' button is disabled. Stopping pagination.");
+            break;
+        }
+
+        console.log("Navigating to the next page...");
         await nextPageButton.click();
-        await page.waitForTimeout(3000);
+
+        await new Promise(resolve => setTimeout(resolve, 3000));
         pageCounter++;
-    }
+    }     
 
     console.log("Total Reviews Scraped:", allReviews.length);
     await sendReviews(allReviews, hotelId);
+    console.log("Closing browser...");
     await browser.close();
 }
 
@@ -206,6 +258,8 @@ async function sendReviews(reviews, hotelId) {
                 ota: "ticket.com"
             });
             console.log('✅ Data sent to backend successfully');
+            console.log('Total Reviews Sent:', reviews.length);
+            console.log('Hotel ID:', hotelId);
         } else {
             console.log('ℹ️ No valid reviews found.');
         }
